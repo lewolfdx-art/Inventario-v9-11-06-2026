@@ -33,6 +33,7 @@ class ProductosPdfExport
             'modelo' => 'Modelo',
             'nombre' => 'Nombre',
             'categoria' => 'Categoría',
+            'subcategoria' => 'Subcategoría',  // ← Agregar esto
             'marca' => 'Marca',
             'estado' => 'Estado',
             'unidad_compra' => 'Unidad',
@@ -64,6 +65,7 @@ class ProductosPdfExport
             foreach ($keysToExport as $key) {
                 $value = match($key) {
                     'categoria' => $producto->categoria->nombre ?? '',
+                    'subcategoria' => $producto->subcategoria->nombre ?? '',  // ← Agregar esto
                     'marca' => $producto->marca->nombre ?? '',
                     'unidad_compra' => $producto->unidadCompra->nombre ?? '',
                     'naturaleza' => $producto->naturaleza->nombre ?? '',
