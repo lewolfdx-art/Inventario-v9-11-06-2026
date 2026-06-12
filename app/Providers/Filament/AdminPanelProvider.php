@@ -28,6 +28,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Sistema de Inventario')
+            ->brandLogo(asset('images/login-logo.png'))  
+            ->brandLogoHeight('3rem')
             ->colors([
                 'primary' => Color::Amber,
             ])
