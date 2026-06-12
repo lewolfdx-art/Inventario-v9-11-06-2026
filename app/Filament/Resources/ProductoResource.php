@@ -13,6 +13,8 @@ use Filament\Tables\Actions\Action;
 use Filament\Notifications\Notification;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ProductosImport;
+use App\Exports\ProductosExport;
+use App\Exports\ProductosPdfExport;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ProductoResource extends Resource
@@ -32,7 +34,7 @@ class ProductoResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('sku')
                             ->required()
-                            ->maxLength(10)
+                            ->maxLength(50)
                             ->unique(ignoreRecord: true)
                             ->label('SKU')
                             ->placeholder('Ej: SKU001')
@@ -40,13 +42,13 @@ class ProductoResource extends Resource
                         
                         Forms\Components\TextInput::make('modelo')
                             ->required()
-                            ->maxLength(10)
+                            ->maxLength(100)
                             ->label('Modelo')
                             ->placeholder('Ej: XT-100'),
                         
                         Forms\Components\TextInput::make('nombre')
                             ->required()
-                            ->maxLength(10)
+                            ->maxLength(200)
                             ->label('Nombre')
                             ->placeholder('Ej: Producto'),
                     ])->columns(3),
@@ -142,7 +144,7 @@ class ProductoResource extends Resource
         return $table
             // ✅ PAGINACIÓN
             ->defaultPaginationPageOption(10)
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50, 100, 250, 500])
             ->paginated(true)
             
             // ✅ SELECT/DESELECT ALL
@@ -151,64 +153,140 @@ class ProductoResource extends Resource
             // ✅ BÚSQUEDA GLOBAL
             ->searchable(true)
             
-            // ✅ CABECERA
+            // ✅ CABECERA (ACCIONES EN LA PARTE SUPERIOR)
             ->headerActions([
+                // 1. IMPORTAR
                 Action::make('importar')
-                ->label('Importar desde Excel')
-                ->icon('heroicon-o-document-arrow-up')
-                ->color('success')
-                ->modalHeading('Importar Productos')
-                ->modalDescription('Seleccione un archivo Excel/CSV con las siguientes columnas:')
+                    ->label('Importar desde Excel')
+                    ->icon('heroicon-o-document-arrow-up')
+                    ->color('success')
+                    ->modalHeading('Importar Productos')
+                    ->modalDescription('Seleccione un archivo Excel/CSV con las siguientes columnas:')
+                    ->form([
+                        Forms\Components\FileUpload::make('archivo')
+                            ->label('Archivo Excel/CSV')
+                            ->required()
+                            ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/csv'])
+                            ->maxSize(10240)
+                            ->storeFiles(false),
+                    ])
+                    ->action(function (array $data) {
+                        try {
+                            $archivo = $data['archivo'];
+                            
+                            if (!$archivo) {
+                                throw new \Exception('No se ha seleccionado ningún archivo');
+                            }
+                            
+                            $import = new \App\Imports\ProductosImport();
+                            \Maatwebsite\Excel\Facades\Excel::import($import, $archivo->getRealPath());
+                            
+                            Notification::make()
+                                ->title('✅ Importación completada')
+                                ->body('Se importaron ' . $import->getImportados() . ' productos.')
+                                ->success()
+                                ->send();
+                                
+                        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+                            $errores = [];
+                            foreach ($e->failures() as $failure) {
+                                $errores[] = "Fila {$failure->row()}: " . implode(', ', $failure->errors());
+                            }
+                            
+                            Notification::make()
+                                ->title('❌ Error de validación')
+                                ->body(implode("\n", array_slice($errores, 0, 10)))
+                                ->danger()
+                                ->send();
+                                
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('❌ Error en la importación')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                
+                // 2. EXPORTAR TODO A EXCEL
+                Action::make('exportar_todo_excel')
+                    ->label('Exportar todo a Excel')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('info')
+                    ->form([
+                        Forms\Components\CheckboxList::make('columnas')
+                            ->label('Columnas a exportar')
+                            ->options([
+                                'sku' => 'SKU',
+                                'modelo' => 'Modelo',
+                                'nombre' => 'Nombre',
+                                'categoria' => 'Categoría',
+                                'subcategoria' => 'Subcategoría',
+                                'marca' => 'Marca',
+                                'unidad_compra' => 'Unidad de Compra',
+                                'naturaleza' => 'Naturaleza',
+                                'estado' => 'Estado',
+                                'req_inventario' => 'Requiere Inventario',
+                                'req_serie' => 'Requiere Serie',
+                                'req_lote' => 'Requiere Lote',
+                                'req_calibracion' => 'Requiere Calibración',
+                                'descripcion' => 'Descripción',
+                                'created_at' => 'Fecha Registro',
+                            ])
+                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
+                            ->columns(2)
+                            ->label('Seleccione las columnas'),
+                    ])
+                    ->action(function (array $data) {
+                        $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion'])->get();
+                        
+                        $columnasSeleccionadas = $data['columnas'] ?? [];
+                        
+                        $export = new ProductosExport($records, $columnasSeleccionadas);
+                        
+                        return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
+                    }),
+                
+                // 3. EXPORTAR TODO A PDF
+                Action::make('exportar_todo_pdf')
+                ->label('Exportar todo a PDF')
+                ->icon('heroicon-o-document')
+                ->color('warning')
                 ->form([
-                    Forms\Components\FileUpload::make('archivo')
-                        ->label('Archivo Excel/CSV')
-                        ->required()
-                        ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/csv'])
-                        ->maxSize(10240)
-                        ->storeFiles(false),
+                    Forms\Components\CheckboxList::make('columnas')
+                        ->label('Columnas a exportar')
+                        ->options([
+                            'sku' => 'SKU',
+                            'modelo' => 'Modelo',
+                            'nombre' => 'Nombre',
+                            'categoria' => 'Categoría',
+                            'marca' => 'Marca',
+                            'estado' => 'Estado',
+                            'unidad_compra' => 'Unidad',
+                            'naturaleza' => 'Naturaleza',
+                        ])
+                        ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                        ->columns(2)
+                        ->label('Seleccione las columnas'),
                 ])
                 ->action(function (array $data) {
-                    try {
-                        $archivo = $data['archivo'];
-                        
-                        if (!$archivo) {
-                            throw new \Exception('No se ha seleccionado ningún archivo');
-                        }
-                        
-                        $import = new \App\Imports\ProductosImport();
-                        \Maatwebsite\Excel\Facades\Excel::import($import, $archivo->getRealPath());
-                        
-                        Notification::make()
-                            ->title('✅ Importación completada')
-                            ->body('Se importaron ' . $import->getImportados() . ' productos.')
-                            ->success()
-                            ->send();
-                            
-                    } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-                        $errores = [];
-                        foreach ($e->failures() as $failure) {
-                            $errores[] = "Fila {$failure->row()}: " . implode(', ', $failure->errors());
-                        }
-                        
-                        Notification::make()
-                            ->title('❌ Error de validación')
-                            ->body(implode("\n", array_slice($errores, 0, 10)))
-                            ->danger()
-                            ->send();
-                            
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('❌ Error en la importación')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
+                    $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->get();
+                    $columnasSeleccionadas = $data['columnas'] ?? [];
+                    
+                    $export = new \App\Exports\ProductosPdfExport($records, $columnasSeleccionadas);
+                    
+                    // Devolver respuesta directa sin pasar por Livewire
+                    return response()->streamDownload(function () use ($export) {
+                        echo $export->getContent();
+                    }, 'catalogo_productos_' . now()->format('Ymd_His') . '.pdf', [
+                        'Content-Type' => 'application/pdf',
+                    ]);
                 }),
             ])
             
             // ✅ COLUMNAS
             ->columns([
-                // ✅ Checkbox para seleccionar - usando make() con columna existente
+                // Checkbox para seleccionar
                 Tables\Columns\CheckboxColumn::make('id')
                     ->label('')
                     ->alignCenter(),
@@ -390,10 +468,79 @@ class ProductoResource extends Resource
                 Tables\Actions\DeleteAction::make(),
             ])
             
-            // ✅ ACCIONES MASIVAS
+            // ✅ ACCIONES MASIVAS (para seleccionar múltiples)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // 1. ELIMINAR - ROJO
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->label('Eliminar seleccionados')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger'),
+                    
+                    // 2. EXPORTAR A EXCEL - VERDE
+                    Tables\Actions\BulkAction::make('exportar_seleccionados_excel')
+                        ->label('Exportar seleccionados a Excel')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->form([
+                            Forms\Components\CheckboxList::make('columnas')
+                                ->label('Columnas a exportar')
+                                ->options([
+                                    'sku' => 'SKU',
+                                    'modelo' => 'Modelo',
+                                    'nombre' => 'Nombre',
+                                    'categoria' => 'Categoría',
+                                    'subcategoria' => 'Subcategoría',
+                                    'marca' => 'Marca',
+                                    'unidad_compra' => 'Unidad de Compra',
+                                    'naturaleza' => 'Naturaleza',
+                                    'estado' => 'Estado',
+                                ])
+                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                                ->columns(2)
+                                ->label('Seleccione las columnas'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado']);
+                            $export = new ProductosExport($records, $data['columnas'] ?? []);
+                            return Excel::download($export, 'productos_seleccionados_' . now()->format('Ymd_His') . '.xlsx');
+                        }),
+                    
+                    // 3. EXPORTAR A PDF - AZUL
+                    Tables\Actions\BulkAction::make('exportar_seleccionados_pdf')
+                        ->label('Exportar seleccionados a PDF')
+                        ->icon('heroicon-o-document')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\CheckboxList::make('columnas')
+                                ->label('Columnas a exportar')
+                                ->options([
+                                    'sku' => 'SKU',
+                                    'modelo' => 'Modelo',
+                                    'nombre' => 'Nombre',
+                                    'categoria' => 'Categoría',
+                                    'subcategoria' => 'Subcategoría',
+                                    'marca' => 'Marca',
+                                    'unidad_compra' => 'Unidad de Compra',
+                                    'naturaleza' => 'Naturaleza',
+                                    'estado' => 'Estado',
+                                ])
+                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                                ->columns(2)
+                                ->label('Seleccione las columnas'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado']);
+                            $columnasSeleccionadas = $data['columnas'] ?? [];
+                            
+                            $export = new ProductosPdfExport($records, $columnasSeleccionadas);
+                            
+                            return response()->streamDownload(function () use ($export) {
+                                echo $export->getContent();
+                            }, 'productos_seleccionados_' . now()->format('Ymd_His') . '.pdf', [
+                                'Content-Type' => 'application/pdf',
+                            ]);
+                        }),
                 ]),
             ])
             
