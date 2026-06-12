@@ -155,11 +155,11 @@ class ProductoResource extends Resource
             
             // ✅ CABECERA (ACCIONES EN LA PARTE SUPERIOR)
             ->headerActions([
-                // 1. IMPORTAR
+                // 1. IMPORTAR - AZUL
                 Action::make('importar')
                     ->label('Importar desde Excel')
                     ->icon('heroicon-o-document-arrow-up')
-                    ->color('success')
+                    ->color('primary')
                     ->modalHeading('Importar Productos')
                     ->modalDescription('Seleccione un archivo Excel/CSV con las siguientes columnas:')
                     ->form([
@@ -208,11 +208,11 @@ class ProductoResource extends Resource
                         }
                     }),
                 
-                // 2. EXPORTAR TODO A EXCEL
+                // 2. EXPORTAR TODO A EXCEL - VERDE
                 Action::make('exportar_todo_excel')
                     ->label('Exportar todo a Excel')
                     ->icon('heroicon-o-document-arrow-down')
-                    ->color('info')
+                    ->color('success')
                     ->form([
                         Forms\Components\CheckboxList::make('columnas')
                             ->label('Columnas a exportar')
@@ -247,49 +247,47 @@ class ProductoResource extends Resource
                         return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
                     }),
                 
-                // 3. EXPORTAR TODO A PDF
+                // 3. EXPORTAR TODO A PDF - ROJO
                 Action::make('exportar_todo_pdf')
-                ->label('Exportar todo a PDF')
-                ->icon('heroicon-o-document')
-                ->color('warning')
-                ->form([
-                    Forms\Components\CheckboxList::make('columnas')
-                        ->label('Columnas a exportar')
-                        ->options([
-                            'sku' => 'SKU',
-                            'modelo' => 'Modelo',
-                            'nombre' => 'Nombre',
-                            'categoria' => 'Categoría',
-                            'marca' => 'Marca',
-                            'estado' => 'Estado',
-                            'unidad_compra' => 'Unidad',
-                            'naturaleza' => 'Naturaleza',
-                        ])
-                        ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
-                        ->columns(2)
-                        ->label('Seleccione las columnas'),
-                ])
-                ->action(function (array $data) {
-                    $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->get();
-                    $columnasSeleccionadas = $data['columnas'] ?? [];
-                    
-                    $export = new \App\Exports\ProductosPdfExport($records, $columnasSeleccionadas);
-                    
-                    // Devolver respuesta directa sin pasar por Livewire
-                    return response()->streamDownload(function () use ($export) {
-                        echo $export->getContent();
-                    }, 'catalogo_productos_' . now()->format('Ymd_His') . '.pdf', [
-                        'Content-Type' => 'application/pdf',
-                    ]);
-                }),
+                    ->label('Exportar todo a PDF')
+                    ->icon('heroicon-o-document')
+                    ->color('danger')
+                    ->form([
+                        Forms\Components\CheckboxList::make('columnas')
+                            ->label('Columnas a exportar')
+                            ->options([
+                                'sku' => 'SKU',
+                                'modelo' => 'Modelo',
+                                'nombre' => 'Nombre',
+                                'categoria' => 'Categoría',
+                                'marca' => 'Marca',
+                                'estado' => 'Estado',
+                                'unidad_compra' => 'Unidad',
+                                'naturaleza' => 'Naturaleza',
+                            ])
+                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                            ->columns(2)
+                            ->label('Seleccione las columnas'),
+                    ])
+                    ->action(function (array $data) {
+                        $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->get();
+                        $columnasSeleccionadas = $data['columnas'] ?? [];
+                        
+                        $export = new \App\Exports\ProductosPdfExport($records, $columnasSeleccionadas);
+                        
+                        return response()->streamDownload(function () use ($export) {
+                            echo $export->getContent();
+                        }, 'catalogo_productos_' . now()->format('Ymd_His') . '.pdf', [
+                            'Content-Type' => 'application/pdf',
+                        ]);
+                    }),
             ])
             
             // ✅ COLUMNAS
             ->columns([
-                // Checkbox para seleccionar
-                Tables\Columns\CheckboxColumn::make('id')
-                    ->label('')
-                    ->alignCenter(),
+                //Tables\Columns\CheckboxColumn::make('id')
+                  //  ->label('')
+                    //->alignCenter(),
                 
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
@@ -471,15 +469,15 @@ class ProductoResource extends Resource
             // ✅ ACCIONES MASIVAS (para seleccionar múltiples)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    // 1. ELIMINAR - ROJO
+                    // 1. ELIMINAR - GRIS
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Eliminar seleccionados')
                         ->icon('heroicon-o-trash')
-                        ->color('danger'),
+                        ->color('secondary'),
                     
                     // 2. EXPORTAR A EXCEL - VERDE
                     Tables\Actions\BulkAction::make('exportar_seleccionados_excel')
-                        ->label('Exportar seleccionados a Excel')
+                        ->label('Excel Exportar seleccionados')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->color('success')
                         ->form([
@@ -506,11 +504,11 @@ class ProductoResource extends Resource
                             return Excel::download($export, 'productos_seleccionados_' . now()->format('Ymd_His') . '.xlsx');
                         }),
                     
-                    // 3. EXPORTAR A PDF - AZUL
+                    // 3. EXPORTAR A PDF - ROJO
                     Tables\Actions\BulkAction::make('exportar_seleccionados_pdf')
-                        ->label('Exportar seleccionados a PDF')
+                        ->label('PDF Exportar seleccionados')
                         ->icon('heroicon-o-document')
-                        ->color('info')
+                        ->color('danger')
                         ->form([
                             Forms\Components\CheckboxList::make('columnas')
                                 ->label('Columnas a exportar')
