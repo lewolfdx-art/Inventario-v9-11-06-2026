@@ -136,26 +136,77 @@ class ProductoResource extends Resource
                             ->columnSpanFull()
                             ->label('Descripción'),
                     ]),
+
+                // ========== SECCIÓN DE RECALIBRACIONES ==========
+                Forms\Components\Section::make('Historial de Recalibraciones')
+                    ->description('Registra cada recalibración realizada al producto. El sistema mostrará alertas cuando se acerque la próxima fecha.')
+                    ->schema([
+                        Forms\Components\Repeater::make('recalibraciones')
+                            ->relationship()
+                            ->label('Recalibraciones realizadas')
+                            ->schema([
+                                Forms\Components\DatePicker::make('fecha_recalibracion')
+                                    ->label('Fecha de recalibración')
+                                    ->required(false)
+                                    ->maxDate(now())
+                                    ->native(false)
+                                    ->placeholder('Seleccione la fecha'),
+
+                                Forms\Components\DatePicker::make('proxima_recalibracion')
+                                    ->label('Próxima recalibración')
+                                    ->required(false)
+                                    ->minDate(now())
+                                    ->native(false)
+                                    ->helperText('El sistema mostrará alertas cuando se acerque esta fecha'),
+
+                                Forms\Components\Textarea::make('observaciones')
+                                    ->label('Observaciones / Certificado / Proveedor')
+                                    ->rows(3)
+                                    ->placeholder('Ej: Certificado N° 00123, Laboratorio Acreditado'),
+
+                                Forms\Components\TextInput::make('realizada_por_nombre')
+                                    ->label('Realizada por')
+                                    ->placeholder('Ej: Andres Reyes - Técnico')
+                                    ->maxLength(100)
+                                    ->required(false),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull()
+                            ->reorderable(false)
+                            ->deletable(true)
+                            ->deleteAction(
+                                fn($action) => $action
+                                    ->label('Eliminar esta recalibración')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->size('sm')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('¿Eliminar esta recalibración?')
+                                    ->modalDescription('Esta acción no se puede deshacer.')
+                                    ->modalSubmitActionLabel('Sí, eliminar')
+                                    ->modalCancelActionLabel('Cancelar')
+                            )
+                            ->addActionLabel('➕ Agregar nueva recalibración')
+                            ->defaultItems(0)
+                            ->minItems(0)
+                            ->maxItems(10),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn($record) => !$record?->recalibraciones()->exists()),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            // ✅ PAGINACIÓN
             ->defaultPaginationPageOption(10)
             ->paginationPageOptions([10, 25, 50, 100, 250, 500])
             ->paginated(true)
-            
-            // ✅ SELECT/DESELECT ALL
             ->selectable(true)
-            
-            // ✅ BÚSQUEDA GLOBAL
             ->searchable(true)
             
-            // ✅ CABECERA (ACCIONES EN LA PARTE SUPERIOR)
+            // CABECERA
             ->headerActions([
-                // 1. IMPORTAR - AZUL
                 Action::make('importar')
                     ->label('Importar desde Excel')
                     ->icon('heroicon-o-document-arrow-up')
@@ -173,32 +224,26 @@ class ProductoResource extends Resource
                     ->action(function (array $data) {
                         try {
                             $archivo = $data['archivo'];
-                            
                             if (!$archivo) {
                                 throw new \Exception('No se ha seleccionado ningún archivo');
                             }
-                            
                             $import = new \App\Imports\ProductosImport();
-                            \Maatwebsite\Excel\Facades\Excel::import($import, $archivo->getRealPath());
-                            
+                            Excel::import($import, $archivo->getRealPath());
                             Notification::make()
                                 ->title('✅ Importación completada')
                                 ->body('Se importaron ' . $import->getImportados() . ' productos.')
                                 ->success()
                                 ->send();
-                                
                         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
                             $errores = [];
                             foreach ($e->failures() as $failure) {
                                 $errores[] = "Fila {$failure->row()}: " . implode(', ', $failure->errors());
                             }
-                            
                             Notification::make()
                                 ->title('❌ Error de validación')
                                 ->body(implode("\n", array_slice($errores, 0, 10)))
                                 ->danger()
                                 ->send();
-                                
                         } catch (\Exception $e) {
                             Notification::make()
                                 ->title('❌ Error en la importación')
@@ -208,7 +253,6 @@ class ProductoResource extends Resource
                         }
                     }),
                 
-                // 2. EXPORTAR TODO A EXCEL - VERDE
                 Action::make('exportar_todo_excel')
                     ->label('Exportar todo a Excel')
                     ->icon('heroicon-o-document-arrow-down')
@@ -230,7 +274,6 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
-                                'descripcion' => 'Descripción',
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
@@ -239,15 +282,11 @@ class ProductoResource extends Resource
                     ])
                     ->action(function (array $data) {
                         $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion'])->get();
-                        
                         $columnasSeleccionadas = $data['columnas'] ?? [];
-                        
                         $export = new ProductosExport($records, $columnasSeleccionadas);
-                        
                         return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
                     }),
                 
-                // 3. EXPORTAR TODO A PDF - ROJO
                 Action::make('exportar_todo_pdf')
                     ->label('Exportar todo a PDF')
                     ->icon('heroicon-o-document')
@@ -272,9 +311,7 @@ class ProductoResource extends Resource
                     ->action(function (array $data) {
                         $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->get();
                         $columnasSeleccionadas = $data['columnas'] ?? [];
-                        
-                        $export = new \App\Exports\ProductosPdfExport($records, $columnasSeleccionadas);
-                        
+                        $export = new ProductosPdfExport($records, $columnasSeleccionadas);
                         return response()->streamDownload(function () use ($export) {
                             echo $export->getContent();
                         }, 'catalogo_productos_' . now()->format('Ymd_His') . '.pdf', [
@@ -283,12 +320,8 @@ class ProductoResource extends Resource
                     }),
             ])
             
-            // ✅ COLUMNAS
+            // COLUMNAS
             ->columns([
-                //Tables\Columns\CheckboxColumn::make('id')
-                  //  ->label('')
-                    //->alignCenter(),
-                
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable()
@@ -358,6 +391,14 @@ class ProductoResource extends Resource
                         default => 'gray',
                     }),
                 
+                // ✅ NUEVA COLUMNA: Próxima recalibración
+                Tables\Columns\TextColumn::make('proxima_recalibracion_formatted')
+                    ->label('Próxima recalibración')
+                    ->sortable(false)
+                    ->badge()
+                    ->color(fn($record) => $record->proxima_recalibracion_color)
+                    ->toggleable(isToggledHiddenByDefault: false),
+                
                 Tables\Columns\IconColumn::make('reqInventario.nombre')
                     ->label('Inv')
                     ->icon(fn(string $state): string => match ($state) {
@@ -425,8 +466,8 @@ class ProductoResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             
-            // ✅ FILTROS
             ->filters([
+                // 1. Categoría
                 Tables\Filters\SelectFilter::make('categoria_id')
                     ->label('Categoría')
                     ->relationship('categoria', 'nombre')
@@ -434,6 +475,15 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
+                // 2. Subcategoría
+                Tables\Filters\SelectFilter::make('subcategoria_id')
+                    ->label('Subcategoría')
+                    ->relationship('subcategoria', 'nombre')
+                    ->searchable()
+                    ->preload()
+                    ->multiple(),
+                
+                // 3. Marca
                 Tables\Filters\SelectFilter::make('marca_id')
                     ->label('Marca')
                     ->relationship('marca', 'nombre')
@@ -441,43 +491,98 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
+                // 4. Unidad de Compra
+                Tables\Filters\SelectFilter::make('unidad_compra_id')
+                    ->label('Unidad de Compra')
+                    ->relationship('unidadCompra', 'nombre')
+                    ->searchable()
+                    ->preload()
+                    ->multiple(),
+                
+                // 5. Naturaleza
+                Tables\Filters\SelectFilter::make('naturaleza_id')
+                    ->label('Naturaleza')
+                    ->relationship('naturaleza', 'nombre')
+                    ->multiple(),
+                
+                // 6. Estado
                 Tables\Filters\SelectFilter::make('estado_id')
                     ->label('Estado')
                     ->relationship('estado', 'nombre')
                     ->multiple(),
                 
+                // 7. Requiere Inventario - usando los ID correctos
+                Tables\Filters\SelectFilter::make('req_inventario_id')
+                    ->label('Requiere Inventario')
+                    ->options([
+                        '2' => 'Sí',   // id 2 = Si
+                        '3' => 'No',   // id 3 = No
+                    ])
+                    ->multiple(),
+                
+                // 8. Requiere Serie - usando los ID correctos
+                Tables\Filters\SelectFilter::make('req_serie_id')
+                    ->label('Requiere Serie')
+                    ->options([
+                        '2' => 'Sí',   // id 2 = Si
+                        '3' => 'No',   // id 3 = No
+                    ])
+                    ->multiple(),
+                
+                // 9. Requiere Lote - usando los ID correctos
+                Tables\Filters\SelectFilter::make('req_lote_id')
+                    ->label('Requiere Lote')
+                    ->options([
+                        '2' => 'Sí',   // id 2 = Si
+                        '3' => 'No',   // id 3 = No
+                    ])
+                    ->multiple(),
+                
+                // 10. Requiere Calibración - usando los ID correctos
+                Tables\Filters\SelectFilter::make('req_calibracion_id')
+                    ->label('Requiere Calibración')
+                    ->options([
+                        '1' => 'Sí',   // id 1 = Si
+                        '2' => 'No',   // id 2 = No
+                    ])
+                    ->multiple(),
+                
+                // 11. Fecha de creación
                 Tables\Filters\Filter::make('created_at')
+                    ->label('Fecha de creación')
                     ->form([
                         Forms\Components\DatePicker::make('created_from')
-                            ->label('Creado desde'),
+                            ->label('Desde')
+                            ->native(false),
                         Forms\Components\DatePicker::make('created_until')
-                            ->label('Creado hasta'),
+                            ->label('Hasta')
+                            ->native(false),
                     ])
                     ->query(function ($query, array $data) {
                         return $query
                             ->when($data['created_from'], fn($q) => $q->whereDate('created_at', '>=', $data['created_from']))
                             ->when($data['created_until'], fn($q) => $q->whereDate('created_at', '<=', $data['created_until']));
-                    }),
+                    })
+                    ->columns(2)
+                    ->columnSpanFull(),
             ])
             
-            // ✅ ACCIONES POR FILA
+            // ACCIONES POR FILA
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             
-            // ✅ ACCIONES MASIVAS (para seleccionar múltiples)
+            // ACCIONES MASIVAS
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    // 1. ELIMINAR - GRIS
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Eliminar seleccionados')
                         ->icon('heroicon-o-trash')
                         ->color('secondary'),
                     
-                    // 2. EXPORTAR A EXCEL - VERDE
                     Tables\Actions\BulkAction::make('exportar_seleccionados_excel')
-                        ->label('Excel Exportar seleccionados')
+                        ->label('Exportar seleccionados a Excel')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->color('success')
                         ->form([
@@ -493,20 +598,24 @@ class ProductoResource extends Resource
                                     'unidad_compra' => 'Unidad de Compra',
                                     'naturaleza' => 'Naturaleza',
                                     'estado' => 'Estado',
+                                    'req_inventario' => 'Requiere Inventario',
+                                    'req_serie' => 'Requiere Serie',
+                                    'req_lote' => 'Requiere Lote',
+                                    'req_calibracion' => 'Requiere Calibración',
+                                    'created_at' => 'Fecha Registro',
                                 ])
-                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
                                 ->columns(2)
                                 ->label('Seleccione las columnas'),
                         ])
                         ->action(function ($records, array $data) {
-                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado']);
+                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion']);
                             $export = new ProductosExport($records, $data['columnas'] ?? []);
-                            return Excel::download($export, 'productos_seleccionados_' . now()->format('Ymd_His') . '.xlsx');
+                            return Excel::download($export, 'Detalle_inventario_herramientas_' . now()->format('Ymd_His') . '.xlsx');
                         }),
                     
-                    // 3. EXPORTAR A PDF - ROJO
                     Tables\Actions\BulkAction::make('exportar_seleccionados_pdf')
-                        ->label('PDF Exportar seleccionados')
+                        ->label('Exportar seleccionados a PDF')
                         ->icon('heroicon-o-document')
                         ->color('danger')
                         ->form([
@@ -522,27 +631,29 @@ class ProductoResource extends Resource
                                     'unidad_compra' => 'Unidad de Compra',
                                     'naturaleza' => 'Naturaleza',
                                     'estado' => 'Estado',
+                                    'req_inventario' => 'Requiere Inventario',
+                                    'req_serie' => 'Requiere Serie',
+                                    'req_lote' => 'Requiere Lote',
+                                    'req_calibracion' => 'Requiere Calibración',
+                                    'created_at' => 'Fecha Registro',
                                 ])
                                 ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
                                 ->columns(2)
                                 ->label('Seleccione las columnas'),
                         ])
                         ->action(function ($records, array $data) {
-                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado']);
+                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion']);
                             $columnasSeleccionadas = $data['columnas'] ?? [];
-                            
                             $export = new ProductosPdfExport($records, $columnasSeleccionadas);
-                            
                             return response()->streamDownload(function () use ($export) {
                                 echo $export->getContent();
-                            }, 'productos_seleccionados_' . now()->format('Ymd_His') . '.pdf', [
+                            }, 'Detalle_inventario_herramientas_' . now()->format('Ymd_His') . '.pdf', [
                                 'Content-Type' => 'application/pdf',
                             ]);
                         }),
                 ]),
             ])
             
-            // ✅ ESTILOS
             ->striped()
             ->emptyStateHeading('No hay productos')
             ->emptyStateDescription('Crea un producto o importa desde Excel para comenzar.')

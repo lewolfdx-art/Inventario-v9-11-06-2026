@@ -33,11 +33,17 @@ class ProductosPdfExport
             'modelo' => 'Modelo',
             'nombre' => 'Nombre',
             'categoria' => 'Categoría',
-            'subcategoria' => 'Subcategoría',  // ← Agregar esto
+            'subcategoria' => 'Subcategoría',
             'marca' => 'Marca',
-            'estado' => 'Estado',
-            'unidad_compra' => 'Unidad',
+            'unidad_compra' => 'Unidad de Compra',
             'naturaleza' => 'Naturaleza',
+            'estado' => 'Estado',
+            'req_inventario' => 'Requiere Inventario',
+            'req_serie' => 'Requiere Serie',
+            'req_lote' => 'Requiere Lote',
+            'req_calibracion' => 'Requiere Calibración',
+            'descripcion' => 'Descripción',
+            'created_at' => 'Fecha Registro',
         ];
     }
 
@@ -65,11 +71,15 @@ class ProductosPdfExport
             foreach ($keysToExport as $key) {
                 $value = match($key) {
                     'categoria' => $producto->categoria->nombre ?? '',
-                    'subcategoria' => $producto->subcategoria->nombre ?? '',  // ← Agregar esto
+                    'subcategoria' => $producto->subcategoria->nombre ?? '',  
                     'marca' => $producto->marca->nombre ?? '',
                     'unidad_compra' => $producto->unidadCompra->nombre ?? '',
                     'naturaleza' => $producto->naturaleza->nombre ?? '',
                     'estado' => $producto->estado->nombre ?? '',
+                    'req_inventario' => $producto->reqInventario->nombre ?? '',
+                    'req_serie' => $producto->reqSerie->nombre ?? '',
+                    'req_lote' => $producto->reqLote->nombre ?? '',
+                    'req_calibracion' => $producto->reqCalibracion->nombre ?? '',
                     default => $producto->$key ?? '',
                 };
                 $row[] = $this->cleanString($value);

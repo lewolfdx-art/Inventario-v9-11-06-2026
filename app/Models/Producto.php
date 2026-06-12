@@ -76,4 +76,49 @@ class Producto extends Model
     {
         return $this->belongsTo(Marca::class);
     }
+
+    // ========== RELACIÓN CON RECALIBRACIONES ==========
+    public function recalibraciones()
+    {
+        return $this->hasMany(Recalibracion::class);
+    }
+
+    // Método para obtener la próxima recalibración más cercana
+    public function getProximaRecalibracionAttribute()
+    {
+        return $this->recalibraciones()
+            ->whereNotNull('proxima_recalibracion')
+            ->orderBy('proxima_recalibracion', 'asc')
+            ->first()
+            ?->proxima_recalibracion;
+    }
+
+    // Color para el badge de próxima recalibración
+    public function getProximaRecalibracionColorAttribute()
+    {
+        $proxima = $this->proxima_recalibracion;
+        if (!$proxima) return 'gray';
+        
+        $dias = now()->diffInDays($proxima, false);
+        
+        if ($dias < 0) return 'danger';      // Vencido
+        if ($dias <= 30) return 'warning';   // Por vencer (30 días)
+        if ($dias <= 90) return 'info';      // Próximo (90 días)
+        return 'success';                     // Ok
+    }
+
+    // Formato para mostrar en la tabla
+    public function getProximaRecalibracionFormattedAttribute()
+    {
+        $proxima = $this->proxima_recalibracion;
+        if (!$proxima) return '📅 No programada';
+        
+        $dias = now()->diffInDays($proxima, false);
+        
+        if ($dias < 0) return '⚠️ Vencido hace ' . abs($dias) . ' días';
+        if ($dias == 0) return '🔴 Hoy';
+        if ($dias == 1) return '🟠 Mañana';
+        if ($dias <= 7) return '🟡 En ' . $dias . ' días';
+        return '🟢 En ' . $dias . ' días';
+    }
 }
