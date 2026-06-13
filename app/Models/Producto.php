@@ -13,6 +13,7 @@ class Producto extends Model
         'sku',
         'modelo',
         'nombre',
+        'serie',
         'unidad_compra_id',
         'naturaleza_id',
         'req_inventario_id',
@@ -121,4 +122,8 @@ class Producto extends Model
         if ($dias <= 7) return '🟡 En ' . $dias . ' días';
         return '🟢 En ' . $dias . ' días';
     }
+    public function getNombreCompletoAttribute()
+{
+    return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
+}
 }

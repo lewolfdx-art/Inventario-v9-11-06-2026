@@ -21,8 +21,8 @@ class ProductoResource extends Resource
 {
     protected static ?string $model = Producto::class;
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
-    protected static ?string $navigationGroup = 'Catalogo de Productos';
-    protected static ?string $pluralLabel = 'Productos';
+    protected static ?string $navigationGroup = 'Catalogo de Herramientas';
+    protected static ?string $pluralLabel = 'Herramientas';
     protected static ?string $label = 'Producto';
     protected static ?int $navigationSort = 1;
 
@@ -112,6 +112,7 @@ class ProductoResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
+                            ->reactive() // ← Importante para reactividad
                             ->label('¿Requiere Serie?'),
                         
                         Forms\Components\Select::make('req_lote_id')
@@ -128,6 +129,15 @@ class ProductoResource extends Resource
                             ->preload()
                             ->label('¿Requiere Calibración?'),
                     ])->columns(2),
+                
+                // ✅ CAMPO DE SERIE - Visible solo cuando Requiere Serie = Sí (id = 2)
+                Forms\Components\TextInput::make('serie')
+                    ->label('Número de Serie')
+                    ->maxLength(100)
+                    ->placeholder('Ej: SN-123456789')
+                    ->helperText('Ingrese el número de serie del producto')
+                    ->visible(fn($get) => $get('req_serie_id') == 2) // 2 = Sí
+                    ->required(fn($get) => $get('req_serie_id') == 2), // Obligatorio si requiere serie
                 
                 Forms\Components\Section::make('Información Adicional')
                     ->schema([
@@ -274,6 +284,7 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
+                                'serie' => 'Número de Serie',
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
@@ -303,6 +314,7 @@ class ProductoResource extends Resource
                                 'estado' => 'Estado',
                                 'unidad_compra' => 'Unidad',
                                 'naturaleza' => 'Naturaleza',
+                                'serie' => 'Serie',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
                             ->columns(2)
@@ -339,6 +351,12 @@ class ProductoResource extends Resource
                     ->label('Nombre')
                     ->searchable()
                     ->sortable(),
+                
+                Tables\Columns\TextColumn::make('serie')
+                    ->label('Serie')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 Tables\Columns\TextColumn::make('categoria.nombre')
                     ->label('Categoría')
@@ -391,7 +409,6 @@ class ProductoResource extends Resource
                         default => 'gray',
                     }),
                 
-                // ✅ NUEVA COLUMNA: Próxima recalibración
                 Tables\Columns\TextColumn::make('proxima_recalibracion_formatted')
                     ->label('Próxima recalibración')
                     ->sortable(false)
@@ -415,7 +432,7 @@ class ProductoResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\IconColumn::make('reqSerie.nombre')
-                    ->label('Serie')
+                    ->label('Req.Serie')
                     ->icon(fn(string $state): string => match ($state) {
                         'Si' => 'heroicon-o-check-circle',
                         'No' => 'heroicon-o-x-circle',
@@ -467,7 +484,6 @@ class ProductoResource extends Resource
             ])
             
             ->filters([
-                // 1. Categoría
                 Tables\Filters\SelectFilter::make('categoria_id')
                     ->label('Categoría')
                     ->relationship('categoria', 'nombre')
@@ -475,7 +491,6 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
-                // 2. Subcategoría
                 Tables\Filters\SelectFilter::make('subcategoria_id')
                     ->label('Subcategoría')
                     ->relationship('subcategoria', 'nombre')
@@ -483,7 +498,6 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
-                // 3. Marca
                 Tables\Filters\SelectFilter::make('marca_id')
                     ->label('Marca')
                     ->relationship('marca', 'nombre')
@@ -491,7 +505,6 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
-                // 4. Unidad de Compra
                 Tables\Filters\SelectFilter::make('unidad_compra_id')
                     ->label('Unidad de Compra')
                     ->relationship('unidadCompra', 'nombre')
@@ -499,55 +512,48 @@ class ProductoResource extends Resource
                     ->preload()
                     ->multiple(),
                 
-                // 5. Naturaleza
                 Tables\Filters\SelectFilter::make('naturaleza_id')
                     ->label('Naturaleza')
                     ->relationship('naturaleza', 'nombre')
                     ->multiple(),
                 
-                // 6. Estado
                 Tables\Filters\SelectFilter::make('estado_id')
                     ->label('Estado')
                     ->relationship('estado', 'nombre')
                     ->multiple(),
                 
-                // 7. Requiere Inventario - usando los ID correctos
                 Tables\Filters\SelectFilter::make('req_inventario_id')
                     ->label('Requiere Inventario')
                     ->options([
-                        '2' => 'Sí',   // id 2 = Si
-                        '3' => 'No',   // id 3 = No
+                        '2' => 'Sí',
+                        '3' => 'No',
                     ])
                     ->multiple(),
                 
-                // 8. Requiere Serie - usando los ID correctos
                 Tables\Filters\SelectFilter::make('req_serie_id')
                     ->label('Requiere Serie')
                     ->options([
-                        '2' => 'Sí',   // id 2 = Si
-                        '3' => 'No',   // id 3 = No
+                        '2' => 'Sí',
+                        '3' => 'No',
                     ])
                     ->multiple(),
                 
-                // 9. Requiere Lote - usando los ID correctos
                 Tables\Filters\SelectFilter::make('req_lote_id')
                     ->label('Requiere Lote')
                     ->options([
-                        '2' => 'Sí',   // id 2 = Si
-                        '3' => 'No',   // id 3 = No
+                        '2' => 'Sí',
+                        '3' => 'No',
                     ])
                     ->multiple(),
                 
-                // 10. Requiere Calibración - usando los ID correctos
                 Tables\Filters\SelectFilter::make('req_calibracion_id')
                     ->label('Requiere Calibración')
                     ->options([
-                        '1' => 'Sí',   // id 1 = Si
-                        '2' => 'No',   // id 2 = No
+                        '1' => 'Sí',
+                        '2' => 'No',
                     ])
                     ->multiple(),
                 
-                // 11. Fecha de creación
                 Tables\Filters\Filter::make('created_at')
                     ->label('Fecha de creación')
                     ->form([
@@ -567,13 +573,11 @@ class ProductoResource extends Resource
                     ->columnSpanFull(),
             ])
             
-            // ACCIONES POR FILA
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             
-            // ACCIONES MASIVAS
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
@@ -592,6 +596,7 @@ class ProductoResource extends Resource
                                     'sku' => 'SKU',
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
+                                    'serie' => 'Serie',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
@@ -625,6 +630,7 @@ class ProductoResource extends Resource
                                     'sku' => 'SKU',
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
+                                    'serie' => 'Serie',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
