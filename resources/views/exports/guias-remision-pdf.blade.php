@@ -68,7 +68,7 @@
     <div class="header">
         <h1>{{ $title }}</h1>
         <p>{{ $subtitle }}</p>
-        <p>Generado: {{ $date }}</p>  <!-- ✅ Esto muestra fecha y hora -->
+        <p>Generado: {{ $date }}</p>
     </div>
 
     <table>
@@ -91,7 +91,7 @@
     </table>
 
     <div class="total">
-        Total de productos: {{ $total }}
+        Total de guías: {{ $total }}
     </div>
 
     <div class="footer">

@@ -10,7 +10,11 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Actions\Action;
 use Filament\Notifications\Notification;
+use App\Exports\GuiaRemisionExport;
+use App\Exports\GuiaRemisionPdfExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class GuiaRemisionResource extends Resource
 {
@@ -116,7 +120,69 @@ class GuiaRemisionResource extends Resource
             ->defaultPaginationPageOption(10)
             ->paginated(true)
             ->searchable(true)
+            ->selectable(true)
             
+            // CABECERA CON ACCIONES
+            ->headerActions([
+                // Exportar todo a Excel
+                Action::make('exportar_todo_excel')
+                    ->label('Exportar todo a Excel')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\CheckboxList::make('columnas')
+                            ->label('Columnas a exportar')
+                            ->options([
+                                'numero_guia' => 'N° Guía',
+                                'producto_nombre' => 'Producto',
+                                'marca' => 'Marca',
+                                'modelo' => 'Modelo',
+                                'serie' => 'Serie',
+                                'descripcion_completa' => 'Descripción',
+                                'fecha_emision' => 'Fecha Emisión',
+                                'created_at' => 'Fecha Registro',
+                            ])
+                            ->default(['numero_guia', 'producto_nombre', 'serie', 'fecha_emision'])
+                            ->columns(2)
+                            ->label('Seleccione las columnas'),
+                    ])
+                    ->action(function (array $data) {
+                        $records = GuiaRemision::with('producto')->get();
+                        $columnasSeleccionadas = $data['columnas'] ?? [];
+                        $export = new GuiaRemisionExport($records, $columnasSeleccionadas);
+                        return Excel::download($export, 'guias_remision_' . now()->format('Ymd_His') . '.xlsx');
+                    }),
+
+                // Exportar todo a PDF
+                Action::make('exportar_todo_pdf')
+                    ->label('Exportar todo a PDF')
+                    ->icon('heroicon-o-document')
+                    ->color('danger')
+                    ->form([
+                        Forms\Components\CheckboxList::make('columnas')
+                            ->label('Columnas a exportar')
+                            ->options([
+                                'numero_guia' => 'N° Guía',
+                                'producto_nombre' => 'Producto',
+                                'marca' => 'Marca',
+                                'modelo' => 'Modelo',
+                                'serie' => 'Serie',
+                                'descripcion_completa' => 'Descripción',
+                                'fecha_emision' => 'Fecha Emisión',
+                            ])
+                            ->default(['numero_guia', 'producto_nombre', 'serie', 'fecha_emision'])
+                            ->columns(2)
+                            ->label('Seleccione las columnas'),
+                    ])
+                    ->action(function (array $data) {
+                        $records = GuiaRemision::with('producto')->get();
+                        $columnasSeleccionadas = $data['columnas'] ?? [];
+                        $export = new GuiaRemisionPdfExport($records, $columnasSeleccionadas);
+                        return $export->download();
+                    }),
+            ])
+            
+            // COLUMNAS
             ->columns([
                 Tables\Columns\TextColumn::make('numero_guia')
                     ->label('N° Guía')
@@ -153,6 +219,7 @@ class GuiaRemisionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             
+            // FILTROS
             ->filters([
                 Tables\Filters\Filter::make('fecha_emision')
                     ->label('Fecha')
@@ -169,20 +236,73 @@ class GuiaRemisionResource extends Resource
                     }),
             ])
             
+            // ACCIONES POR FILA
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-                Tables\Actions\Action::make('imprimir')
-                    ->label('Imprimir')
-                    ->icon('heroicon-o-printer')
-                    ->color('info')
-                    ->url(fn($record) => route('guia-remision.imprimir', $record))
-                    ->openUrlInNewTab(),
             ])
             
+            // ACCIONES MASIVAS
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    
+                    // Exportar seleccionados a Excel
+                    Tables\Actions\BulkAction::make('exportar_seleccionados_excel')
+                        ->label('Exportar seleccionados a Excel')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->form([
+                            Forms\Components\CheckboxList::make('columnas')
+                                ->label('Columnas a exportar')
+                                ->options([
+                                    'numero_guia' => 'N° Guía',
+                                    'producto_nombre' => 'Producto',
+                                    'marca' => 'Marca',
+                                    'modelo' => 'Modelo',
+                                    'serie' => 'Serie',
+                                    'descripcion_completa' => 'Descripción',
+                                    'fecha_emision' => 'Fecha Emisión',
+                                    'created_at' => 'Fecha Registro',
+                                ])
+                                ->default(['numero_guia', 'producto_nombre', 'serie', 'fecha_emision'])
+                                ->columns(2)
+                                ->label('Seleccione las columnas'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $records->load('producto');
+                            $columnasSeleccionadas = $data['columnas'] ?? [];
+                            $export = new GuiaRemisionExport($records, $columnasSeleccionadas);
+                            return Excel::download($export, 'guias_remision_seleccionadas_' . now()->format('Ymd_His') . '.xlsx');
+                        }),
+                    
+                    // Exportar seleccionados a PDF
+                    Tables\Actions\BulkAction::make('exportar_seleccionados_pdf')
+                        ->label('Exportar seleccionados a PDF')
+                        ->icon('heroicon-o-document')
+                        ->color('danger')
+                        ->form([
+                            Forms\Components\CheckboxList::make('columnas')
+                                ->label('Columnas a exportar')
+                                ->options([
+                                    'numero_guia' => 'N° Guía',
+                                    'producto_nombre' => 'Producto',
+                                    'marca' => 'Marca',
+                                    'modelo' => 'Modelo',
+                                    'serie' => 'Serie',
+                                    'descripcion_completa' => 'Descripción',
+                                    'fecha_emision' => 'Fecha Emisión',
+                                ])
+                                ->default(['numero_guia', 'producto_nombre', 'serie', 'fecha_emision'])
+                                ->columns(2)
+                                ->label('Seleccione las columnas'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $records->load('producto');
+                            $columnasSeleccionadas = $data['columnas'] ?? [];
+                            $export = new GuiaRemisionPdfExport($records, $columnasSeleccionadas);
+                            return $export->download();
+                        }),
                 ]),
             ])
             

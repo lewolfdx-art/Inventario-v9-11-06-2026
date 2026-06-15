@@ -20,7 +20,7 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 class ProductoResource extends Resource
 {
     protected static ?string $model = Producto::class;
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static ?string $navigationIcon = 'heroicon-s-wrench-screwdriver';
     protected static ?string $navigationGroup = 'Catalogo de Herramientas';
     protected static ?string $pluralLabel = 'Herramientas';
     protected static ?string $label = 'Producto';
@@ -274,6 +274,7 @@ class ProductoResource extends Resource
                                 'sku' => 'SKU',
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
+                                'serie' => 'Serie',
                                 'categoria' => 'Categoría',
                                 'subcategoria' => 'Subcategoría',
                                 'marca' => 'Marca',
@@ -309,6 +310,7 @@ class ProductoResource extends Resource
                                 'sku' => 'SKU',
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
+                                'serie' => 'Serie',
                                 'categoria' => 'Categoría',
                                 'marca' => 'Marca',
                                 'estado' => 'Estado',

@@ -20,7 +20,6 @@ class ProductosPdfExport
     {
         if ($string === null) return '';
         $string = (string) $string;
-        // Eliminar caracteres no válidos
         $string = preg_replace('/[^\x20-\x7E\xC0-\xFF]/u', '', $string);
         $string = mb_convert_encoding($string, 'UTF-8', 'auto');
         return trim($string);
@@ -32,6 +31,7 @@ class ProductosPdfExport
             'sku' => 'SKU',
             'modelo' => 'Modelo',
             'nombre' => 'Nombre',
+            'serie' => 'Serie',  // ✅ NUEVO
             'categoria' => 'Categoría',
             'subcategoria' => 'Subcategoría',
             'marca' => 'Marca',
@@ -80,6 +80,7 @@ class ProductosPdfExport
                     'req_serie' => $producto->reqSerie->nombre ?? '',
                     'req_lote' => $producto->reqLote->nombre ?? '',
                     'req_calibracion' => $producto->reqCalibracion->nombre ?? '',
+                    'serie' => $producto->serie ?? '',  // ✅ NUEVO
                     default => $producto->$key ?? '',
                 };
                 $row[] = $this->cleanString($value);
