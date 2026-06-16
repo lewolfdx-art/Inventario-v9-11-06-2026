@@ -284,7 +284,7 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
-                                'barcode' => 'Código Barras', // ✅ AGREGADO
+                                //'barcode' => 'Código Barras', // ✅ AGREGADO
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
@@ -638,7 +638,7 @@ class ProductoResource extends Resource
                                     'req_serie' => 'Requiere Serie',
                                     'req_lote' => 'Requiere Lote',
                                     'req_calibracion' => 'Requiere Calibración',
-                                    'barcode' => 'Código Barras', // ✅ AGREGADO
+                                    //'barcode' => 'Código Barras', // ✅ AGREGADO
                                     'created_at' => 'Fecha Registro',
                                 ])
                                 ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
