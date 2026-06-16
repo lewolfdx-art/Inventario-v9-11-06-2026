@@ -9,6 +9,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\DatePicker;
 
 class MarcaResource extends Resource
 {
@@ -71,7 +73,46 @@ class MarcaResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                // Filtro por nombre (búsqueda rápida)
+                Tables\Filters\SelectFilter::make('nombre')
+                    ->label('Marca')
+                    ->options(fn() => Marca::pluck('nombre', 'nombre')->toArray())
+                    ->searchable()
+                    ->multiple(),
+                
+                // Filtro por fecha de creación (rango)
+                Filter::make('created_at')
+                    ->label('Fecha de creación')
+                    ->form([
+                        DatePicker::make('created_from')
+                            ->label('Desde'),
+                        DatePicker::make('created_until')
+                            ->label('Hasta'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['created_from'], fn($q) => $q->whereDate('created_at', '>=', $data['created_from']))
+                            ->when($data['created_until'], fn($q) => $q->whereDate('created_at', '<=', $data['created_until']));
+                    })
+                    ->columns(2)
+                    ->columnSpanFull(),
+                
+                // Filtro por fecha de actualización (rango)
+                Filter::make('updated_at')
+                    ->label('Fecha de actualización')
+                    ->form([
+                        DatePicker::make('updated_from')
+                            ->label('Desde'),
+                        DatePicker::make('updated_until')
+                            ->label('Hasta'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['updated_from'], fn($q) => $q->whereDate('updated_at', '>=', $data['updated_from']))
+                            ->when($data['updated_until'], fn($q) => $q->whereDate('updated_at', '<=', $data['updated_until']));
+                    })
+                    ->columns(2)
+                    ->columnSpanFull(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
