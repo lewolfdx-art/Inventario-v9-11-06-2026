@@ -16,6 +16,7 @@ use App\Imports\ProductosImport;
 use App\Exports\ProductosExport;
 use App\Exports\ProductosPdfExport;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Filament\Tables\Columns\ImageColumn;
 
 class ProductoResource extends Resource
 {
@@ -112,7 +113,7 @@ class ProductoResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->reactive() // ← Importante para reactividad
+                            ->reactive()
                             ->label('¿Requiere Serie?'),
                         
                         Forms\Components\Select::make('req_lote_id')
@@ -130,14 +131,13 @@ class ProductoResource extends Resource
                             ->label('¿Requiere Calibración?'),
                     ])->columns(2),
                 
-                // ✅ CAMPO DE SERIE - Visible solo cuando Requiere Serie = Sí (id = 2)
                 Forms\Components\TextInput::make('serie')
                     ->label('Número de Serie')
                     ->maxLength(100)
                     ->placeholder('Ej: SN-123456789')
                     ->helperText('Ingrese el número de serie del producto')
-                    ->visible(fn($get) => $get('req_serie_id') == 2) // 2 = Sí
-                    ->required(fn($get) => $get('req_serie_id') == 2), // Obligatorio si requiere serie
+                    ->visible(fn($get) => $get('req_serie_id') == 2)
+                    ->required(fn($get) => $get('req_serie_id') == 2),
                 
                 Forms\Components\Section::make('Información Adicional')
                     ->schema([
@@ -147,7 +147,6 @@ class ProductoResource extends Resource
                             ->label('Descripción'),
                     ]),
 
-                // ========== SECCIÓN DE RECALIBRACIONES ==========
                 Forms\Components\Section::make('Historial de Recalibraciones')
                     ->description('Registra cada recalibración realizada al producto. El sistema mostrará alertas cuando se acerque la próxima fecha.')
                     ->schema([
@@ -209,7 +208,6 @@ class ProductoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-        
             ->defaultPaginationPageOption(10)
             ->paginationPageOptions([10, 25, 50, 100, 250, 500])
             ->paginated(true)
@@ -286,7 +284,6 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
-                                'serie' => 'Número de Serie',
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
@@ -317,7 +314,6 @@ class ProductoResource extends Resource
                                 'estado' => 'Estado',
                                 'unidad_compra' => 'Unidad',
                                 'naturaleza' => 'Naturaleza',
-                                'serie' => 'Serie',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
                             ->columns(2)
@@ -417,6 +413,19 @@ class ProductoResource extends Resource
                     ->sortable(false)
                     ->badge()
                     ->color(fn($record) => $record->proxima_recalibracion_color)
+                    ->toggleable(isToggledHiddenByDefault: false),
+                
+                // ✅ CÓDIGO DE BARRAS
+                ImageColumn::make('barcode')
+                    ->label('Código Barras')
+                    ->getStateUsing(fn (Producto $record) => $record->sku ? route('barcode.producto', $record) : null)
+                    ->size(200)
+                    ->extraImgAttributes([
+                        'alt' => 'Código de barras',
+                        'loading' => 'lazy',
+                        'style' => 'image-rendering: crisp-edges; background: white; padding: 5px; border-radius: 4px; width: 100%; height: auto; object-fit: contain;',
+                    ])
+                    ->placeholder('Sin SKU')
                     ->toggleable(isToggledHiddenByDefault: false),
                 
                 Tables\Columns\IconColumn::make('reqInventario.nombre')
@@ -576,9 +585,28 @@ class ProductoResource extends Resource
                     ->columnSpanFull(),
             ])
             
+            // ✅ ACCIONES POR FILA
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                
+                // 1. Imprimir Etiqueta (vista previa en HTML)
+                Tables\Actions\Action::make('imprimir_etiqueta')
+                    ->label('Imprimir Etiqueta')
+                    ->icon('heroicon-o-printer')
+                    ->color('success')
+                    ->url(fn (Producto $record) => $record->sku ? route('etiqueta.producto', $record) : null)
+                    ->openUrlInNewTab()
+                    ->visible(fn (Producto $record): bool => filled($record->sku)),
+                
+                // 2. Descargar ZPL (para impresora Zebra)
+                Tables\Actions\Action::make('descargar_zpl')
+                ->label('Descargar ZPL')
+                ->icon('heroicon-o-qr-code')
+                ->color('warning')
+                ->url(fn (Producto $record) => $record->sku ? route('etiqueta-zpl.producto', $record) : null)
+                ->openUrlInNewTab()
+                ->visible(fn (Producto $record): bool => filled($record->sku)),
             ])
             
             ->bulkActions([
