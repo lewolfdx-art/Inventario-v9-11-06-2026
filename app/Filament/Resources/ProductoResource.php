@@ -284,6 +284,7 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
+                                'barcode' => 'Código Barras', // ✅ AGREGADO
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
@@ -415,7 +416,6 @@ class ProductoResource extends Resource
                     ->color(fn($record) => $record->proxima_recalibracion_color)
                     ->toggleable(isToggledHiddenByDefault: false),
                 
-                // ✅ CÓDIGO DE BARRAS
                 ImageColumn::make('barcode')
                     ->label('Código Barras')
                     ->getStateUsing(fn (Producto $record) => $record->sku ? route('barcode.producto', $record) : null)
@@ -601,12 +601,12 @@ class ProductoResource extends Resource
                 
                 // 2. Descargar ZPL (para impresora Zebra)
                 Tables\Actions\Action::make('descargar_zpl')
-                ->label('Descargar ZPL')
-                ->icon('heroicon-o-qr-code')
-                ->color('warning')
-                ->url(fn (Producto $record) => $record->sku ? route('etiqueta-zpl.producto', $record) : null)
-                ->openUrlInNewTab()
-                ->visible(fn (Producto $record): bool => filled($record->sku)),
+                    ->label('Descargar ZPL')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('warning')
+                    ->url(fn (Producto $record) => $record->sku ? route('etiqueta-zpl.producto', $record) : null)
+                    ->openUrlInNewTab()
+                    ->visible(fn (Producto $record): bool => filled($record->sku)),
             ])
             
             ->bulkActions([
@@ -638,6 +638,7 @@ class ProductoResource extends Resource
                                     'req_serie' => 'Requiere Serie',
                                     'req_lote' => 'Requiere Lote',
                                     'req_calibracion' => 'Requiere Calibración',
+                                    'barcode' => 'Código Barras', // ✅ AGREGADO
                                     'created_at' => 'Fecha Registro',
                                 ])
                                 ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
