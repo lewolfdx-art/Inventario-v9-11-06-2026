@@ -39,6 +39,7 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
             'modelo'                    => ['header' => 'Modelo',                    'value' => fn($p) => $p->modelo ?? ''],
             'nombre'                    => ['header' => 'Nombre',                    'value' => fn($p) => $p->nombre ?? ''],
             'serie'                     => ['header' => 'Serie',                     'value' => fn($p) => $p->serie ?? ''],
+            'stock'                     => ['header' => 'Stock',                     'value' => fn($p) => $p->stock ?? 0], // ✅ AGREGADO
             'categoria'                 => ['header' => 'Categoría',                 'value' => fn($p) => $p->categoria->nombre ?? ''],
             'subcategoria'              => ['header' => 'Subcategoría',              'value' => fn($p) => $p->subcategoria->nombre ?? ''],
             'marca'                     => ['header' => 'Marca',                     'value' => fn($p) => $p->marca->nombre ?? ''],
@@ -93,13 +94,11 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
     public function styles(Worksheet $sheet)
     {
         return [
-            // Solo el título tiene fondo verde
             1 => [
                 'font' => ['bold' => true, 'size' => 16],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2E7D32']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ],
-            // Los encabezados NO tienen fondo verde
             3 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => '000000']],
                 'borders' => [
@@ -115,13 +114,12 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // Insertar 2 filas al inicio
                 $sheet->insertNewRowBefore(1, 2);
 
                 $colCount = count($this->headings());
                 $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colCount);
 
-                // ==================== FILA 1: Título con fondo verde ====================
+                // Título
                 $sheet->setCellValue('A1', 'CATÁLOGO DE PRODUCTOS - SISTEMA DE INVENTARIO');
                 $sheet->mergeCells("A1:{$lastColumn}1");
                 $sheet->getStyle('A1')->applyFromArray([
@@ -130,7 +128,7 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
 
-                // ==================== FILA 2: Fecha de generación (SIN fondo) ====================
+                // Fecha
                 $sheet->setCellValue('A2', 'Generado: ' . now()->format('d/m/Y H:i:s'));
                 $sheet->mergeCells("A2:{$lastColumn}2");
                 $sheet->getStyle('A2')->applyFromArray([
@@ -138,7 +136,7 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
                 ]);
 
-                // ==================== FILA 3: Encabezados (SIN fondo verde) ====================
+                // Encabezados
                 $sheet->getStyle("A3:{$lastColumn}3")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => '000000']],
                     'borders' => [
@@ -147,7 +145,7 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
 
-                // ==================== BORDES a todas las celdas de datos ====================
+                // Bordes
                 $highestRow = $sheet->getHighestRow();
                 $sheet->getStyle("A3:{$lastColumn}{$highestRow}")->applyFromArray([
                     'borders' => [
@@ -155,7 +153,6 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
                     ],
                 ]);
 
-                // ==================== CONGELAR PANEL ====================
                 $sheet->freezePane('A4');
             },
         ];

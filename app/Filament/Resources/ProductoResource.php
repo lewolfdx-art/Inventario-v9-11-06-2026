@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductoResource\Pages;
 use App\Models\Producto;
+use App\Models\Movimiento;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -52,7 +53,13 @@ class ProductoResource extends Resource
                             ->maxLength(200)
                             ->label('Nombre')
                             ->placeholder('Ej: Producto'),
-                    ])->columns(3),
+                        
+                        Forms\Components\TextInput::make('stock')
+                            ->label('Stock Actual')
+                            ->numeric()
+                            ->default(0)
+                            ->helperText('Cantidad disponible en inventario'),
+                    ])->columns(2),
                 
                 Forms\Components\Section::make('Catálogos (Seleccionar)')
                     ->schema([
@@ -274,6 +281,7 @@ class ProductoResource extends Resource
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
                                 'serie' => 'Serie',
+                                'stock' => 'Stock',
                                 'categoria' => 'Categoría',
                                 'subcategoria' => 'Subcategoría',
                                 'marca' => 'Marca',
@@ -284,10 +292,9 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
-                                //'barcode' => 'Código Barras', // ✅ AGREGADO
                                 'created_at' => 'Fecha Registro',
                             ])
-                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
+                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado', 'stock'])
                             ->columns(2)
                             ->label('Seleccione las columnas'),
                     ])
@@ -310,13 +317,14 @@ class ProductoResource extends Resource
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
                                 'serie' => 'Serie',
+                                'stock' => 'Stock',
                                 'categoria' => 'Categoría',
                                 'marca' => 'Marca',
                                 'estado' => 'Estado',
                                 'unidad_compra' => 'Unidad',
                                 'naturaleza' => 'Naturaleza',
                             ])
-                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                            ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado', 'stock'])
                             ->columns(2)
                             ->label('Seleccione las columnas'),
                     ])
@@ -357,6 +365,13 @@ class ProductoResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
+                
+                Tables\Columns\TextColumn::make('stock')
+                    ->label('Stock')
+                    ->numeric()
+                    ->sortable()
+                    ->badge()
+                    ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success')),
                 
                 Tables\Columns\TextColumn::make('categoria.nombre')
                     ->label('Categoría')
@@ -590,16 +605,80 @@ class ProductoResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 
-                // 1. Imprimir Etiqueta (vista previa en HTML)
+                // 📥 ENTRADA
+                Tables\Actions\Action::make('entrada')
+                    ->label('📥 Entrada')
+                    ->icon('heroicon-o-arrow-up-circle')
+                    ->color('success')
+                    ->action(function ($record) {
+                        $stockAnterior = $record->stock ?? 0;
+                        $nuevoStock = $stockAnterior + 1;
+                        
+                        $record->stock = $nuevoStock;
+                        $record->save();
+                        
+                        \App\Models\Movimiento::create([
+                            'producto_id' => $record->id,
+                            'tipo' => 'entrada',
+                            'cantidad' => 1,
+                            'stock_anterior' => $stockAnterior,
+                            'stock_nuevo' => $nuevoStock,
+                        ]);
+                        
+                        Notification::make()
+                            ->title('📥 Entrada registrada')
+                            ->body($record->nombre . ': ' . $stockAnterior . ' → ' . $nuevoStock)
+                            ->success()
+                            ->send();
+                    }),
+                
+                // 📤 SALIDA
+                Tables\Actions\Action::make('salida')
+                    ->label('📤 Salida')
+                    ->icon('heroicon-o-arrow-down-circle')
+                    ->color('danger')
+                    ->action(function ($record) {
+                        $stockAnterior = $record->stock ?? 0;
+                        
+                        if ($stockAnterior <= 0) {
+                            Notification::make()
+                                ->title('❌ Sin stock disponible')
+                                ->body('No hay stock para dar salida a ' . $record->nombre)
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+                        
+                        $nuevoStock = $stockAnterior - 1;
+                        
+                        $record->stock = $nuevoStock;
+                        $record->save();
+                        
+                        \App\Models\Movimiento::create([
+                            'producto_id' => $record->id,
+                            'tipo' => 'salida',
+                            'cantidad' => 1,
+                            'stock_anterior' => $stockAnterior,
+                            'stock_nuevo' => $nuevoStock,
+                        ]);
+                        
+                        Notification::make()
+                            ->title('📤 Salida registrada')
+                            ->body($record->nombre . ': ' . $stockAnterior . ' → ' . $nuevoStock)
+                            ->success()
+                            ->send();
+                    }),
+                
+                // Imprimir Etiqueta
                 Tables\Actions\Action::make('imprimir_etiqueta')
                     ->label('Imprimir Etiqueta')
                     ->icon('heroicon-o-printer')
-                    ->color('success')
+                    ->color('info')
                     ->url(fn (Producto $record) => $record->sku ? route('etiqueta.producto', $record) : null)
                     ->openUrlInNewTab()
                     ->visible(fn (Producto $record): bool => filled($record->sku)),
                 
-                // 2. Descargar ZPL (para impresora Zebra)
+                // Descargar ZPL
                 Tables\Actions\Action::make('descargar_zpl')
                     ->label('Descargar ZPL')
                     ->icon('heroicon-o-qr-code')
@@ -628,6 +707,7 @@ class ProductoResource extends Resource
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
                                     'serie' => 'Serie',
+                                    'stock' => 'Stock',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
@@ -638,10 +718,9 @@ class ProductoResource extends Resource
                                     'req_serie' => 'Requiere Serie',
                                     'req_lote' => 'Requiere Lote',
                                     'req_calibracion' => 'Requiere Calibración',
-                                    //'barcode' => 'Código Barras', // ✅ AGREGADO
                                     'created_at' => 'Fecha Registro',
                                 ])
-                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado'])
+                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado', 'stock'])
                                 ->columns(2)
                                 ->label('Seleccione las columnas'),
                         ])
@@ -663,6 +742,7 @@ class ProductoResource extends Resource
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
                                     'serie' => 'Serie',
+                                    'stock' => 'Stock',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
@@ -675,7 +755,7 @@ class ProductoResource extends Resource
                                     'req_calibracion' => 'Requiere Calibración',
                                     'created_at' => 'Fecha Registro',
                                 ])
-                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado'])
+                                ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado', 'stock'])
                                 ->columns(2)
                                 ->label('Seleccione las columnas'),
                         ])

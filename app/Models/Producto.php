@@ -14,6 +14,7 @@ class Producto extends Model
         'modelo',
         'nombre',
         'serie',
+        'stock',  // ✅ AGREGAR ESTO
         'unidad_compra_id',
         'naturaleza_id',
         'req_inventario_id',
@@ -122,8 +123,15 @@ class Producto extends Model
         if ($dias <= 7) return '🟡 En ' . $dias . ' días';
         return '🟢 En ' . $dias . ' días';
     }
+
     public function getNombreCompletoAttribute()
-{
-    return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
-}
+    {
+        return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
+    }
+
+    // ========== RELACIÓN CON MOVIMIENTOS ==========
+    public function movimientos()
+    {
+        return $this->hasMany(Movimiento::class);
+    }
 }

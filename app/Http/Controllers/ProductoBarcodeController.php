@@ -14,14 +14,16 @@ class ProductoBarcodeController extends Controller
             abort(404, 'Este producto no tiene código de barras.');
         }
 
+        // ✅ Limpiar SKU para el código de barras
+        $sku = $this->limpiarSKU($producto->sku);
+
         $generator = new BarcodeGeneratorPNG();
 
-        // ✅ Usar los mismos parámetros que en StockBarcodeController
         $widthFactor = 2;
         $height = 100;
 
         $rawImage = $generator->getBarcode(
-            $producto->sku,
+            $sku,  // ✅ Usar SKU limpio
             $generator::TYPE_CODE_128,
             $widthFactor,
             $height
@@ -35,19 +37,16 @@ class ProductoBarcodeController extends Controller
         $bcWidth  = imagesx($im);
         $bcHeight = imagesy($im);
 
-        // ✅ Márgenes blancos (igual que en Stock)
         $marginLeftRight = 15;
         $marginTopBottom = 12;
 
         $totalWidth  = $bcWidth + (2 * $marginLeftRight);
         $totalHeight = $bcHeight + (2 * $marginTopBottom);
 
-        // ✅ Crear imagen con fondo BLANCO
         $newImage = imagecreatetruecolor($totalWidth, $totalHeight);
         $white = imagecolorallocate($newImage, 255, 255, 255);
         imagefill($newImage, 0, 0, $white);
 
-        // ✅ Copiar el código de barras centrado con márgenes blancos
         imagecopy($newImage, $im, $marginLeftRight, $marginTopBottom, 0, 0, $bcWidth, $bcHeight);
 
         imagedestroy($im);
@@ -62,5 +61,12 @@ class ProductoBarcodeController extends Controller
             ->header('Content-Type', 'image/png')
             ->header('Cache-Control', 'public, max-age=86400')
             ->header('Content-Disposition', 'inline; filename="barcode_' . $producto->sku . '.png"');
+    }
+
+    private function limpiarSKU($sku)
+    {
+        // Reemplazar caracteres problemáticos
+        $sku = str_replace(["'", "´", "`"], '-', $sku);
+        return $sku;
     }
 }
