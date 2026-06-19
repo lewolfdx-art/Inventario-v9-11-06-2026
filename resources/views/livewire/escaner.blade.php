@@ -1,7 +1,7 @@
 <div>
     <div class="p-6 max-w-4xl mx-auto w-full">
         <!-- Título -->
-        <h1 class="text-3xl font-bold text-center mb-2">🔍 SISTEMA DE INVENTARIO</h1>
+        <h1 class="text-3xl font-bold text-center mb-2">📋 SISTEMA DE INVENTARIO</h1>
         <p class="text-gray-600 text-center mb-8">Escanea el código de barras para registrar movimientos</p>
         
         <!-- Tarjeta principal -->

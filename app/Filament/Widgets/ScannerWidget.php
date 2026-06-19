@@ -25,7 +25,7 @@ class ScannerWidget extends Widget
         return $form
             ->schema([
                 Forms\Components\TextInput::make('sku')
-                    ->label('🔍 Código de barras')
+                    ->label('📋 Código de barras')
                     ->placeholder('Escanea el código...')
                     ->autofocus()
                     ->reactive()

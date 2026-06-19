@@ -1,7 +1,7 @@
 <div class="fi-wi p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">
-            🔍 Escáner de código de barras
+            📋 Escáner de código de barras
         </h2>
         <div class="flex items-center gap-2">
             <span class="text-sm text-gray-500">Modo actual:</span>
