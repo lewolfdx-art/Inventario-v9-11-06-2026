@@ -13,7 +13,7 @@ class ScannerWidget extends Widget
 {
     protected static ?int $sort = -10;
     protected static string $view = 'filament.widgets.scanner-widget';
-
+    protected static bool $isDiscovered = false;
     public $sku = '';
     public $tipo = 'salida'; // ✅ Empieza en SALIDA
     public $cantidad = 1;
