@@ -7,9 +7,11 @@ use App\Http\Controllers\ProductoBarcodeController;
 use App\Http\Controllers\EtiquetaZPLController;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Picqer\Barcode\BarcodeGeneratorPNG;
+use App\Livewire\Escaner; // ✅ Importar Livewire
 
+// ✅ Redirigir a la vista del escáner
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/escanear');
 });
 
 // ============================================================
@@ -31,7 +33,6 @@ Route::get('/etiqueta/producto/{producto}', function (Producto $producto) {
 
     $pdf = Pdf::loadView('etiquetas.producto-etiqueta', compact('producto', 'barcodeImage'));
     
-    // ✅ Tamaño más cuadrado y centrado
     $pdf->setPaper([0, 0, 270, 350], 'portrait');
 
     return $pdf->download('etiqueta_' . $producto->sku . '.pdf');
@@ -49,3 +50,14 @@ Route::get('/guia-remision/imprimir/{guia}', function (GuiaRemision $guia) {
 // ============================================================
 Route::get('/etiqueta-zpl/producto/{producto}', [EtiquetaZPLController::class, 'generate'])
     ->name('etiqueta-zpl.producto');
+
+// ============================================================
+// ESCÁNER CON LIVEWIRE ✅ (SOLO ESTA RUTA)
+// ============================================================
+Route::get('/escanear', Escaner::class)->name('escaneo.index');
+
+// ❌ ELIMINAR O COMENTAR ESTAS RUTAS:
+// Route::get('/escanear', [EscaneoController::class, 'index'])->name('escaneo.index');
+// Route::post('/escanear/buscar', [EscaneoController::class, 'buscar'])->name('escaneo.buscar');
+// Route::post('/escanear/registrar', [EscaneoController::class, 'registrar'])->name('escaneo.registrar');
+// Route::get('/escanear/contador', function() { ... })->name('escaneo.contador');
