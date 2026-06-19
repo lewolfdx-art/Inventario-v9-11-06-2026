@@ -39,19 +39,21 @@
                     </div>
                 @endif
                 
-                <!-- Contadores -->
+                <!-- ✅ Contadores separados -->
                 <div class="mt-6 flex justify-center gap-12">
                     <div class="text-center">
-                        <div class="text-sm font-semibold text-gray-600 uppercase">📥 ENTRADA</div>
+                        <div class="text-sm font-semibold text-gray-600 uppercase">📥 ENTRADAS</div>
                         <div class="text-3xl font-bold text-green-600">
-                            Escaneos: {{ $contador }}
+                            {{ $entradas }}
                         </div>
+                        <div class="text-xs text-gray-400 mt-1">Escaneos totales: {{ $contador }}</div>
                     </div>
                     <div class="text-center">
-                        <div class="text-sm font-semibold text-gray-600 uppercase">📤 SALIDA</div>
+                        <div class="text-sm font-semibold text-gray-600 uppercase">📤 SALIDAS</div>
                         <div class="text-3xl font-bold text-red-600">
-                            Escaneos: {{ $contador }}
+                            {{ $salidas }}
                         </div>
+                        <div class="text-xs text-gray-400 mt-1">Escaneos totales: {{ $contador }}</div>
                     </div>
                 </div>
                 
@@ -111,7 +113,6 @@
     </style>
 
     <script>
-        // ✅ Detector automático de escaneo
         let timeoutId = null;
         let ultimoValor = '';
         
@@ -120,26 +121,20 @@
             if (input) {
                 input.focus();
                 
-                // Detectar cuando se escribe en el input
                 input.addEventListener('input', function() {
-                    // Limpiar el timeout anterior
                     clearTimeout(timeoutId);
                     
-                    // Si el valor es diferente al anterior
                     if (this.value !== ultimoValor) {
                         ultimoValor = this.value;
                         
-                        // Esperar 200ms para asegurar que el escáner terminó de escribir
                         timeoutId = setTimeout(() => {
                             if (this.value.trim() !== '') {
-                                // Ejecutar la función escanear de Livewire
                                 @this.escanear();
                             }
                         }, 200);
                     }
                 });
                 
-                // También detectar Enter manual
                 input.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();

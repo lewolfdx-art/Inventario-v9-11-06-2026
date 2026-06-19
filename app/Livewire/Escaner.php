@@ -12,15 +12,20 @@ class Escaner extends Component
     public $mensaje = '';
     public $contador = 0;
     public $ultimo_producto = null;
-    public $scan_count = 0;
     
-    // ✅ Usar el layout existente
+    // ✅ Nuevas variables para conteos separados
+    public $entradas = 0;
+    public $salidas = 0;
+    
     protected $layout = 'components.layouts.app';
     
     public function mount()
     {
         $this->contador = session('contador_escaner', 0);
-        $this->scan_count = $this->contador;
+        
+        // ✅ Calcular entradas y salidas basado en el contador
+        $this->entradas = ceil($this->contador / 2); // Redondear hacia arriba
+        $this->salidas = floor($this->contador / 2); // Redondear hacia abajo
     }
     
     private function normalizarSku($sku)
@@ -52,9 +57,14 @@ class Escaner extends Component
             return;
         }
         
+        // ✅ Incrementar contador
         $this->contador++;
-        $this->scan_count = $this->contador;
         
+        // ✅ Calcular entradas y salidas
+        $this->entradas = ceil($this->contador / 2);
+        $this->salidas = floor($this->contador / 2);
+        
+        // Determinar tipo (impar = entrada, par = salida)
         $tipo = ($this->contador % 2 == 1) ? 'entrada' : 'salida';
         $stockAnterior = $producto->stock ?? 0;
         
@@ -64,7 +74,8 @@ class Escaner extends Component
             if ($stockAnterior <= 0) {
                 $this->mensaje = '❌ Sin stock disponible para ' . $producto->nombre;
                 $this->contador--;
-                $this->scan_count = $this->contador;
+                $this->entradas = ceil($this->contador / 2);
+                $this->salidas = floor($this->contador / 2);
                 $this->codigo = '';
                 return;
             }
@@ -85,7 +96,10 @@ class Escaner extends Component
         session(['contador_escaner' => $this->contador]);
         
         $this->ultimo_producto = $producto;
-        $this->mensaje = "✅ {$tipo} registrada: {$producto->nombre} (Stock: {$stockAnterior} → {$nuevoStock})";
+        
+        // ✅ Mostrar el tipo en el mensaje
+        $icono = ($tipo == 'entrada') ? '📥' : '📤';
+        $this->mensaje = "✅ {$icono} {$tipo} registrada: {$producto->nombre} (Stock: {$stockAnterior} → {$nuevoStock})";
         
         $this->codigo = '';
         $this->dispatch('focus-input');
@@ -97,7 +111,8 @@ class Escaner extends Component
         $this->mensaje = '';
         $this->ultimo_producto = null;
         $this->contador = 0;
-        $this->scan_count = 0;
+        $this->entradas = 0;
+        $this->salidas = 0;
         session(['contador_escaner' => 0]);
         $this->dispatch('focus-input');
     }
