@@ -1,8 +1,39 @@
 <div>
     <div class="p-6 max-w-4xl mx-auto w-full">
-        <!-- Título -->
-        <h1 class="text-3xl font-bold text-center mb-2">📋 SISTEMA DE INVENTARIO</h1>
-        <p class="text-gray-600 text-center mb-8">Escanea el código de barras para registrar movimientos</p>
+        <!-- HEADER CON LOGIN/LOGOUT -->
+        <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold">📋 SISTEMA DE INVENTARIO</h1>
+                <p class="text-gray-600 text-sm">Escanea el código de barras para registrar movimientos</p>
+            </div>
+            
+            @auth
+                <!-- Usuario autenticado -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                        {{ substr(Auth::user()->name, 0, 1) }}
+                    </div>
+                    <div class="hidden sm:block">
+                        <div class="text-sm font-semibold text-gray-700">{{ Auth::user()->name }}</div>
+                        <div class="text-xs text-gray-500">{{ Auth::user()->email }}</div>
+                    </div>
+                    <a href="/admin" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
+                        ⚙️ Panel
+                    </a>
+                    <form method="POST" action="{{ route('logout') }}" class="inline">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
+                            🚪 Salir
+                        </button>
+                    </form>
+                </div>
+            @else
+                <!-- Usuario NO autenticado -->
+                <a href="{{ route('filament.admin.auth.login') }}" class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-semibold transition flex items-center gap-2 shadow-lg">
+                    🔑 Iniciar Sesión
+                </a>
+            @endauth
+        </div>
         
         <!-- Tarjeta principal -->
         <div class="bg-white rounded-lg shadow-xl p-8 border border-gray-200">
