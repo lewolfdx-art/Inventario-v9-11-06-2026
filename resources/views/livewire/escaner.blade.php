@@ -20,7 +20,7 @@
                     <a href="/admin" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
                         ⚙️ Panel
                     </a>
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
+                    <form method="POST" action="{{ route('filament.admin.auth.logout') }}" class="inline">
                         @csrf
                         <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition flex items-center gap-2">
                             🚪 Salir
