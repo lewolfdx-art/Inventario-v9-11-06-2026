@@ -14,6 +14,7 @@ class ListProductos extends ListRecords
     protected static string $resource = ProductoResource::class;
 
     public $contador_escaneos = 0;
+    public $scanner_code = ''; // ✅ Campo exclusivo para el escáner
 
     protected function getHeaderActions(): array
     {
@@ -24,27 +25,24 @@ class ListProductos extends ListRecords
         ];
     }
 
-    // ✅ Captura cualquier cambio en el campo de búsqueda
-    public function updated($property, $value): void
+    // ✅ Captura el escaneo desde el campo "scanner_code"
+    public function updatedScannerCode($value): void
     {
-        if ($property === 'tableSearch' && !empty($value) && strlen($value) > 3) {
-            // Reemplazar apóstrofe por guion
+        if (!empty($value) && strlen($value) > 3) {
             $sku = str_replace(["'", "´", "`"], '-', $value);
             
-            // Buscar producto
             $producto = Producto::where('sku', $sku)->first();
             
             if ($producto) {
                 $this->ejecutarEscaneo($sku);
-                // Limpiar el campo para el próximo escaneo
-                $this->tableSearch = '';
+                $this->scanner_code = ''; // ✅ Limpiar campo de escáner
             } else {
                 Notification::make()
                     ->title('❌ Producto no encontrado')
                     ->body('No se encontró ningún producto con SKU: ' . $sku)
                     ->danger()
                     ->send();
-                $this->tableSearch = '';
+                $this->scanner_code = '';
             }
         }
     }
@@ -66,7 +64,6 @@ class ListProductos extends ListRecords
             return;
         }
 
-        // ✅ ALTERNAR: IMPAR → SALIDA, PAR → ENTRADA
         $this->contador_escaneos++;
 
         if ($this->contador_escaneos % 2 == 1) {

@@ -223,6 +223,32 @@ class ProductoResource extends Resource
             
             // CABECERA
             ->headerActions([
+                // ✅ ESCÁNER DEDICADO
+                Action::make('escanear')
+                    ->label('📷 Escanear')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('success')
+                    ->modalHeading('Escáner de código de barras')
+                    ->modalDescription('Escanea el código para registrar SALIDA o ENTRADA automáticamente')
+                    ->form([
+                        Forms\Components\TextInput::make('scanner_code')
+                            ->label('Código de barras')
+                            ->placeholder('Escanea el código...')
+                            ->autofocus()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, $livewire, $set) {
+                                if (!empty($state)) {
+                                    $livewire->scanner_code = $state;
+                                    $livewire->updatedScannerCode($state);
+                                    $set('scanner_code', '');
+                                    $livewire->dispatch('close-modal');
+                                }
+                            }),
+                    ])
+                    ->action(function () {
+                        // No hacer nada aquí
+                    }),
+                
                 Action::make('importar')
                     ->label('Importar desde Excel')
                     ->icon('heroicon-o-document-arrow-up')
