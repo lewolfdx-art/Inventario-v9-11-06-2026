@@ -7,7 +7,8 @@ use App\Http\Controllers\ProductoBarcodeController;
 use App\Http\Controllers\EtiquetaZPLController;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Picqer\Barcode\BarcodeGeneratorPNG;
-use App\Livewire\Escaner; // ✅ Importar Livewire
+use App\Livewire\Escaner;
+use App\Http\Controllers\LogoutController;
 
 // ✅ Redirigir a la vista del escáner
 Route::get('/', function () {
@@ -52,12 +53,11 @@ Route::get('/etiqueta-zpl/producto/{producto}', [EtiquetaZPLController::class, '
     ->name('etiqueta-zpl.producto');
 
 // ============================================================
-// ESCÁNER CON LIVEWIRE ✅ (SOLO ESTA RUTA)
+// ESCÁNER CON LIVEWIRE
 // ============================================================
 Route::get('/escanear', Escaner::class)->name('escaneo.index');
 
-// ❌ ELIMINAR O COMENTAR ESTAS RUTAS:
-// Route::get('/escanear', [EscaneoController::class, 'index'])->name('escaneo.index');
-// Route::post('/escanear/buscar', [EscaneoController::class, 'buscar'])->name('escaneo.buscar');
-// Route::post('/escanear/registrar', [EscaneoController::class, 'registrar'])->name('escaneo.registrar');
-// Route::get('/escanear/contador', function() { ... })->name('escaneo.contador');
+// ============================================================
+// LOGOUT PERSONALIZADO (Redirige a /escanear)
+// ============================================================
+Route::post('/admin/logout', [LogoutController::class, 'logout'])->name('filament.admin.auth.logout');
