@@ -30,25 +30,19 @@ class NotificationService
         $stockCritico = $productos->where('stock', '<=', 0)->count();
         $stockBajo = $productos->where('stock', '>', 0)->where('stock', '<=', 5)->count();
 
-        // Productos sin stock (críticos) para mostrar
-        $criticos = $productos->where('stock', '<=', 0)->take(5);
-        $criticosLista = $criticos->map(function ($item) {
-            return "• {$item->nombre} (SKU: {$item->sku}) - Stock: {$item->stock}";
-        })->implode("\n");
-
-        $body = "Hay {$totalProductos} productos con stock bajo:\n";
-        $body .= "🚨 {$stockCritico} sin stock (crítico)\n";
-        $body .= "⚠️ {$stockBajo} con stock bajo (≤ 5)";
-        
-        if ($stockCritico > 0) {
-            $body .= "\n\nProductos sin stock:\n{$criticosLista}";
-        }
+        // Construir mensaje - SOLO RESUMEN
+        $body = "RESUMEN DE STOCK BAJO\n";
+        $body .= "────────────────────────────\n";
+        $body .= "Total productos: {$totalProductos}\n";
+        $body .= "Sin stock (crítico): {$stockCritico}\n";
+        $body .= "Stock bajo (≤ 5): {$stockBajo}";
 
         Notification::make()
-            ->title(" Alerta de Stock Bajo")
+            ->title("Alerta de Stock Bajo")
             ->body($body)
             ->icon('heroicon-o-exclamation-triangle')
             ->iconColor('danger')
+            ->duration(60000)
             ->actions([
                 Action::make('ver')
                     ->label('Ver todos los productos')
@@ -68,7 +62,7 @@ class NotificationService
      */
     public static function checkRecalibraciones()
     {
-        $hoy = Carbon::now();
+        $hoy = Carbon::now()->startOfDay();
         $treintaDias = $hoy->copy()->addDays(30);
         
         // Obtener productos con recalibraciones próximas
@@ -98,8 +92,8 @@ class NotificationService
             foreach ($producto->recalibraciones as $recalibracion) {
                 if (!$recalibracion->proxima_recalibracion) continue;
                 
-                $fecha = Carbon::parse($recalibracion->proxima_recalibracion);
-                $diferencia = $hoy->diffInDays($fecha, false);
+                $fecha = Carbon::parse($recalibracion->proxima_recalibracion)->startOfDay();
+                $diferencia = (int) $hoy->diffInDays($fecha, false);
                 
                 if ($diferencia < 0) {
                     $vencidas[] = $producto;
@@ -113,7 +107,6 @@ class NotificationService
             }
         }
 
-        // Contar usando count() en arrays (no en colecciones)
         $totalVencidas = count($vencidas);
         $total7Dias = count($proximas7Dias);
         $total30Dias = count($proximas30Dias);
@@ -123,45 +116,38 @@ class NotificationService
             return;
         }
 
-        // Construir mensaje
-        $mensaje = "Hay {$total} productos con recalibraciones próximas:\n";
+        // Construir mensaje - SOLO RESUMEN
+        $mensaje = "RESUMEN DE RECALIBRACIONES\n";
+        $mensaje .= "────────────────────────────\n";
+        $mensaje .= "Total: {$total} productos\n";
         
         if ($totalVencidas > 0) {
-            $mensaje .= "🔴 {$totalVencidas} vencidas\n";
+            $mensaje .= "Vencidas: {$totalVencidas}\n";
         }
         if ($total7Dias > 0) {
-            $mensaje .= "🟡 {$total7Dias} en los próximos 7 días\n";
+            $mensaje .= "Próximos 7 días: {$total7Dias}\n";
         }
         if ($total30Dias > 0) {
-            $mensaje .= "🟢 {$total30Dias} en los próximos 30 días";
-        }
-
-        // Mostrar primeros 3 productos como ejemplo
-        $primeros = array_merge($vencidas, $proximas7Dias, $proximas30Dias);
-        $primeros = array_slice($primeros, 0, 3);
-        
-        if (!empty($primeros)) {
-            $mensaje .= "\n\nPróximos ejemplos:";
-            foreach ($primeros as $producto) {
-                $fecha = $producto->proxima_recalibracion 
-                    ? Carbon::parse($producto->proxima_recalibracion)->format('d/m/Y') 
-                    : 'N/A';
-                $mensaje .= "\n• {$producto->nombre} - {$fecha}";
-            }
+            $mensaje .= "Próximos 30 días: {$total30Dias}";
         }
 
         $iconColor = $totalVencidas > 0 ? 'danger' : ($total7Dias > 0 ? 'warning' : 'info');
 
         Notification::make()
-            ->title("📅 Alertas de Recalibración")
+            ->title("Alertas de Recalibración")
             ->body($mensaje)
             ->icon('heroicon-o-calendar')
             ->iconColor($iconColor)
+            ->duration(60000)
             ->actions([
                 Action::make('ver')
-                    ->label('Ver productos')
+                    ->label('Ver todos los productos')
                     ->url('/admin/productos')
                     ->button(),
+                Action::make('verVencidas')
+                    ->label('Ver vencidas')
+                    ->url('/admin/productos?tableFilters[estado][value]=vencido')
+                    ->color('danger'),
             ])
             ->persistent()
             ->send();
