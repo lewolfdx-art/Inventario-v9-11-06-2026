@@ -18,6 +18,7 @@ use App\Exports\ProductosExport;
 use App\Exports\ProductosPdfExport;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Tables\Columns\ImageColumn;
+use Illuminate\Support\HtmlString;
 
 class ProductoResource extends Resource
 {
@@ -60,6 +61,26 @@ class ProductoResource extends Resource
                             ->default(0)
                             ->helperText('Cantidad disponible en inventario'),
                     ])->columns(2),
+                
+                // ✅ SECCIÓN DE IMAGEN (como en GrupoCategoria)
+                Forms\Components\Section::make('Imagen del Producto')
+                    ->schema([
+                        Forms\Components\FileUpload::make('imagen')
+                            ->label('Imagen del producto')
+                            ->image()
+                            ->directory('productos')
+                            ->visibility('public')
+                            ->imageEditor()
+                            ->imageEditorAspectRatios([
+                                '1:1',
+                                '4:3',
+                                '16:9',
+                            ])
+                            ->helperText('Imagen del producto (recomendado: 500x500px)')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn($record) => !$record?->imagen),
                 
                 Forms\Components\Section::make('Catálogos (Seleccionar)')
                     ->schema([
@@ -223,7 +244,6 @@ class ProductoResource extends Resource
             
             // CABECERA
             ->headerActions([
-                // ✅ ESCÁNER DEDICADO
                 Action::make('escanear')
                     ->label('📷 Escanear')
                     ->icon('heroicon-o-qr-code')
@@ -368,6 +388,28 @@ class ProductoResource extends Resource
             
             // COLUMNAS
             ->columns([
+                // ✅ COLUMNA DE IMAGEN (como en GrupoCategoria)
+                ImageColumn::make('imagen')
+                    ->label('Imagen')
+                    ->getStateUsing(fn ($record) => $record->imagen ? asset('storage/' . $record->imagen) : null)
+                    ->size(60)
+                    ->circular()
+                    ->action(
+                        Tables\Actions\Action::make('verImagen')
+                            ->label('')
+                            ->icon('heroicon-m-eye')
+                            ->tooltip('Ver imagen ampliada')
+                            ->modalHeading(fn ($record) => "Imagen de: {$record->nombre}")
+                            ->modalContent(fn ($record) => self::getImageModalContent($record))
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Cerrar')
+                            ->modalWidth('4xl')
+                    )
+                    ->extraAttributes([
+                        'class' => 'cursor-pointer hover:shadow-lg transition-shadow rounded-full',
+                        'title' => 'Haz clic para ampliar'
+                    ]),
+                
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable()
@@ -456,78 +498,6 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color(fn($record) => $record->proxima_recalibracion_color)
                     ->toggleable(isToggledHiddenByDefault: false),
-                
-                ImageColumn::make('barcode')
-                    ->label('Código Barras')
-                    ->getStateUsing(fn (Producto $record) => $record->sku ? route('barcode.producto', $record) : null)
-                    ->size(200)
-                    ->extraImgAttributes([
-                        'alt' => 'Código de barras',
-                        'loading' => 'lazy',
-                        'style' => 'image-rendering: crisp-edges; background: white; padding: 5px; border-radius: 4px; width: 100%; height: auto; object-fit: contain;',
-                    ])
-                    ->placeholder('Sin SKU')
-                    ->toggleable(isToggledHiddenByDefault: false),
-                
-                Tables\Columns\IconColumn::make('reqInventario.nombre')
-                    ->label('Inv')
-                    ->icon(fn(string $state): string => match ($state) {
-                        'Si' => 'heroicon-o-check-circle',
-                        'No' => 'heroicon-o-x-circle',
-                        default => 'heroicon-o-question-mark-circle',
-                    })
-                    ->color(fn(string $state): string => match ($state) {
-                        'Si' => 'success',
-                        'No' => 'danger',
-                        default => 'gray',
-                    })
-                    ->tooltip('Requiere Inventario')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\IconColumn::make('reqSerie.nombre')
-                    ->label('Req.Serie')
-                    ->icon(fn(string $state): string => match ($state) {
-                        'Si' => 'heroicon-o-check-circle',
-                        'No' => 'heroicon-o-x-circle',
-                        default => 'heroicon-o-question-mark-circle',
-                    })
-                    ->color(fn(string $state): string => match ($state) {
-                        'Si' => 'success',
-                        'No' => 'danger',
-                        default => 'gray',
-                    })
-                    ->tooltip('Requiere Serie')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\IconColumn::make('reqLote.nombre')
-                    ->label('Lote')
-                    ->icon(fn(string $state): string => match ($state) {
-                        'Si' => 'heroicon-o-check-circle',
-                        'No' => 'heroicon-o-x-circle',
-                        default => 'heroicon-o-question-mark-circle',
-                    })
-                    ->color(fn(string $state): string => match ($state) {
-                        'Si' => 'success',
-                        'No' => 'danger',
-                        default => 'gray',
-                    })
-                    ->tooltip('Requiere Lote')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                Tables\Columns\IconColumn::make('reqCalibracion.nombre')
-                    ->label('Cal')
-                    ->icon(fn(string $state): string => match ($state) {
-                        'Si' => 'heroicon-o-check-circle',
-                        'No' => 'heroicon-o-x-circle',
-                        default => 'heroicon-o-question-mark-circle',
-                    })
-                    ->color(fn(string $state): string => match ($state) {
-                        'Si' => 'success',
-                        'No' => 'danger',
-                        default => 'gray',
-                    })
-                    ->tooltip('Requiere Calibración')
-                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
@@ -626,7 +596,7 @@ class ProductoResource extends Resource
                     ->columnSpanFull(),
             ])
             
-            // ✅ ACCIONES POR FILA
+            // ACCIONES POR FILA
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -643,7 +613,7 @@ class ProductoResource extends Resource
                         $record->stock = $nuevoStock;
                         $record->save();
                         
-                        \App\Models\Movimiento::create([
+                        Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'entrada',
                             'cantidad' => 1,
@@ -680,7 +650,7 @@ class ProductoResource extends Resource
                         $record->stock = $nuevoStock;
                         $record->save();
                         
-                        \App\Models\Movimiento::create([
+                        Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'salida',
                             'cantidad' => 1,
@@ -812,4 +782,28 @@ class ProductoResource extends Resource
             'edit' => Pages\EditProducto::route('/{record}/edit'),
         ];
     }
-}
+
+    /**
+     * Genera el contenido HTML para el modal de imagen
+     */
+    protected static function getImageModalContent($record): HtmlString
+    {
+        if (!$record->imagen) {
+            return new HtmlString('<div class="text-center text-gray-500 p-8">No hay imagen disponible</div>');
+        }
+
+        $imageUrl = asset('storage/' . $record->imagen);
+        $nombre = e($record->nombre);
+
+        return new HtmlString(<<<HTML
+            <div class="flex justify-center items-center p-4">
+                <img 
+                    src="{$imageUrl}" 
+                    alt="{$nombre}"
+                    class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-xl"
+                    style="border: 2px solid #e5e7eb;"
+                />
+            </div>
+        HTML);
+    }
+}   
