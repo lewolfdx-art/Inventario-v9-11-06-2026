@@ -16,7 +16,7 @@ class Producto extends Model
         'nombre',
         'serie',
         'stock',
-        'imagen',  // ✅ AGREGAR ESTO
+        'imagen',
         'unidad_compra_id',
         'naturaleza_id',
         'req_inventario_id',
@@ -32,37 +32,16 @@ class Producto extends Model
 
     // ========== ACCESORS PARA IMAGEN ==========
     
-    /**
-     * Obtener la URL completa de la imagen
-     */
     public function getImagenUrlAttribute()
     {
         if ($this->imagen) {
-            // Si la imagen existe en storage
             if (Storage::disk('public')->exists($this->imagen)) {
                 return asset('storage/' . $this->imagen);
             }
         }
-        // Imagen por defecto
         return asset('img/producto-default.png');
     }
 
-    /**
-     * Obtener la imagen en miniatura
-     */
-    public function getThumbnailUrlAttribute()
-    {
-        if ($this->imagen) {
-            if (Storage::disk('public')->exists($this->imagen)) {
-                return asset('storage/' . $this->imagen);
-            }
-        }
-        return asset('img/producto-default-thumb.png');
-    }
-
-    /**
-     * Verificar si el producto tiene imagen
-     */
     public function getHasImagenAttribute()
     {
         return !empty($this->imagen) && Storage::disk('public')->exists($this->imagen);
@@ -120,13 +99,18 @@ class Producto extends Model
         return $this->belongsTo(Marca::class);
     }
 
-    // ========== RELACIÓN CON RECALIBRACIONES ==========
-    
     public function recalibraciones()
     {
         return $this->hasMany(Recalibracion::class);
     }
 
+    public function movimientos()
+    {
+        return $this->hasMany(Movimiento::class);
+    }
+
+    // ========== RECALIBRACIONES ==========
+    
     public function getProximaRecalibracionAttribute()
     {
         return $this->recalibraciones()
@@ -141,51 +125,47 @@ class Producto extends Model
         $proxima = $this->proxima_recalibracion;
         if (!$proxima) return 'gray';
         
-        $dias = now()->diffInDays($proxima, false);
+        $dias = (int) now()->startOfDay()->diffInDays($proxima, false);
         
         if ($dias < 0) return 'danger';
-        if ($dias <= 30) return 'warning';
-        if ($dias <= 90) return 'info';
+        if ($dias == 0) return 'danger';
+        if ($dias <= 7) return 'warning';
+        if ($dias <= 30) return 'info';
         return 'success';
     }
 
+    /**
+     * ✅ Formato para mostrar en la tabla - CON DÍAS ENTEROS
+     */
     public function getProximaRecalibracionFormattedAttribute()
     {
         $proxima = $this->proxima_recalibracion;
         if (!$proxima) return '📅 No programada';
         
-        $dias = now()->diffInDays($proxima, false);
+        // ✅ CALCULAR DÍAS ENTEROS
+        $hoy = now()->startOfDay();
+        $fechaProxima = \Carbon\Carbon::parse($proxima)->startOfDay();
+        $dias = (int) $hoy->diffInDays($fechaProxima, false);
         
-        if ($dias < 0) return '⚠️ Vencido hace ' . abs($dias) . ' días';
+        // Si la fecha es hoy
         if ($dias == 0) return '🔴 Hoy';
-        if ($dias == 1) return '🟠 Mañana';
-        if ($dias <= 7) return '🟡 En ' . $dias . ' días';
-        return '🟢 En ' . $dias . ' días';
+        
+        // Si es en el futuro
+        if ($dias > 0) {
+            if ($dias == 1) return '🟠 Mañana';
+            if ($dias <= 7) return '🟡 En ' . $dias . ' días';
+            if ($dias <= 30) return '🟢 En ' . $dias . ' días';
+            return '✅ En ' . $dias . ' días';
+        }
+        
+        // Si es en el pasado (vencido)
+        $diasVencido = abs($dias);
+        if ($diasVencido == 1) return '⚠️ Vencido hace 1 día';
+        return '⚠️ Vencido hace ' . $diasVencido . ' días';
     }
 
     public function getNombreCompletoAttribute()
     {
         return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
-    }
-
-    // ========== RELACIÓN CON MOVIMIENTOS ==========
-    
-    public function movimientos()
-    {
-        return $this->hasMany(Movimiento::class);
-    }
-
-    // ========== MÉTODO PARA ELIMINAR IMAGEN ==========
-    
-    /**
-     * Eliminar la imagen del producto
-     */
-    public function deleteImagen()
-    {
-        if ($this->imagen && Storage::disk('public')->exists($this->imagen)) {
-            Storage::disk('public')->delete($this->imagen);
-        }
-        $this->imagen = null;
-        $this->save();
     }
 }
