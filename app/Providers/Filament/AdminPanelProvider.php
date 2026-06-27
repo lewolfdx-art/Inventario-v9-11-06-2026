@@ -17,6 +17,9 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Log; // ✅ IMPORTANTE: Agregar esta línea
+use App\Services\NotificationService;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -59,6 +62,20 @@ class AdminPanelProvider extends PanelProvider
             
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            
+            // ✅ Hook para ejecutar notificaciones
+            ->bootUsing(function () {
+                // Solo ejecutar en rutas admin y si no se ha ejecutado en esta sesión
+                if (request()->is('admin*') && !Session::has('alertas_ejecutadas')) {
+                    try {
+                        NotificationService::runAllChecks();
+                        Session::put('alertas_ejecutadas', true);
+                    } catch (\Exception $e) {
+                        // Log ahora funciona porque importamos Log
+                        Log::error('Error en notificaciones: ' . $e->getMessage());
+                    }
+                }
+            });
     }
 }

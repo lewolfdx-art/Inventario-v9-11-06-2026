@@ -19,6 +19,7 @@ use App\Exports\ProductosPdfExport;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Tables\Columns\ImageColumn;
 use Illuminate\Support\HtmlString;
+use Picqer\Barcode\BarcodeGeneratorPNG;
 
 class ProductoResource extends Resource
 {
@@ -62,7 +63,7 @@ class ProductoResource extends Resource
                             ->helperText('Cantidad disponible en inventario'),
                     ])->columns(2),
                 
-                // ✅ SECCIÓN DE IMAGEN (como en GrupoCategoria)
+                // ✅ SECCIÓN DE IMAGEN
                 Forms\Components\Section::make('Imagen del Producto')
                     ->schema([
                         Forms\Components\FileUpload::make('imagen')
@@ -175,6 +176,7 @@ class ProductoResource extends Resource
                             ->label('Descripción'),
                     ]),
 
+                // ✅ SECCIÓN DE RECALIBRACIONES - OPCIÓN 3 (SIN VALIDACIÓN)
                 Forms\Components\Section::make('Historial de Recalibraciones')
                     ->description('Registra cada recalibración realizada al producto. El sistema mostrará alertas cuando se acerque la próxima fecha.')
                     ->schema([
@@ -192,9 +194,9 @@ class ProductoResource extends Resource
                                 Forms\Components\DatePicker::make('proxima_recalibracion')
                                     ->label('Próxima recalibración')
                                     ->required(false)
-                                    ->minDate(now())
                                     ->native(false)
-                                    ->helperText('El sistema mostrará alertas cuando se acerque esta fecha'),
+                                    ->placeholder('Seleccione la fecha')
+                                    ->helperText('Seleccione la fecha de próxima recalibración'),
 
                                 Forms\Components\Textarea::make('observaciones')
                                     ->label('Observaciones / Certificado / Proveedor')
@@ -220,7 +222,7 @@ class ProductoResource extends Resource
                                     ->requiresConfirmation()
                                     ->modalHeading('¿Eliminar esta recalibración?')
                                     ->modalDescription('Esta acción no se puede deshacer.')
-                                    ->modalSubmitActionLabel('Sí, eliminar')
+                                    ->modalSubmitActionLabel('Si, eliminar')
                                     ->modalCancelActionLabel('Cancelar')
                             )
                             ->addActionLabel('➕ Agregar nueva recalibración')
@@ -386,9 +388,9 @@ class ProductoResource extends Resource
                     }),
             ])
             
-            // COLUMNAS
+            // COLUMNAS - CON TOGGLES EN TODAS
             ->columns([
-                // ✅ COLUMNA DE IMAGEN (como en GrupoCategoria)
+                // ✅ COLUMNA DE IMAGEN (siempre visible)
                 ImageColumn::make('imagen')
                     ->label('Imagen')
                     ->getStateUsing(fn ($record) => $record->imagen ? asset('storage/' . $record->imagen) : null)
@@ -408,67 +410,97 @@ class ProductoResource extends Resource
                     ->extraAttributes([
                         'class' => 'cursor-pointer hover:shadow-lg transition-shadow rounded-full',
                         'title' => 'Haz clic para ampliar'
-                    ]),
+                    ])
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
                 
+                // ✅ CÓDIGO DE BARRAS
+                ImageColumn::make('barcode')
+                    ->label('Código Barras')
+                    ->getStateUsing(fn (Producto $record) => $record->sku ? route('barcode.producto', $record) : null)
+                    ->size(120)
+                    ->extraImgAttributes([
+                        'alt' => 'Código de barras',
+                        'loading' => 'lazy',
+                        'style' => 'image-rendering: crisp-edges; background: white; padding: 4px; border-radius: 4px; width: 100%; height: auto; object-fit: contain;',
+                    ])
+                    ->placeholder('Sin SKU')
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                
+                // ✅ SKU
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable()
                     ->sortable()
                     ->badge()
                     ->color('primary')
-                    ->copyable(),
+                    ->copyable()
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
                 
+                // ✅ MODELO
                 Tables\Columns\TextColumn::make('modelo')
                     ->label('Modelo')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ NOMBRE
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
                 
+                // ✅ SERIE
                 Tables\Columns\TextColumn::make('serie')
                     ->label('Serie')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ STOCK
                 Tables\Columns\TextColumn::make('stock')
                     ->label('Stock')
                     ->numeric()
                     ->sortable()
                     ->badge()
-                    ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success')),
+                    ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
                 
+                // ✅ CATEGORÍA
                 Tables\Columns\TextColumn::make('categoria.nombre')
                     ->label('Categoría')
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color('info'),
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ SUBCATEGORÍA
                 Tables\Columns\TextColumn::make('subcategoria.nombre')
                     ->label('Subcategoría')
                     ->searchable()
                     ->sortable()
                     ->badge()
                     ->color('warning')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ MARCA
                 Tables\Columns\TextColumn::make('marca.nombre')
                     ->label('Marca')
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color('secondary'),
+                    ->color('secondary')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ UNIDAD DE COMPRA
                 Tables\Columns\TextColumn::make('unidadCompra.nombre')
                     ->label('Unidad')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ NATURALEZA
                 Tables\Columns\TextColumn::make('naturaleza.nombre')
                     ->label('Naturaleza')
                     ->searchable()
@@ -479,8 +511,9 @@ class ProductoResource extends Resource
                         'intangible' => 'warning',
                         default => 'gray',
                     })
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ ESTADO
                 Tables\Columns\TextColumn::make('estado.nombre')
                     ->label('Estado')
                     ->searchable()
@@ -490,20 +523,87 @@ class ProductoResource extends Resource
                         'activo' => 'success',
                         'inactivo' => 'danger',
                         default => 'gray',
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
                 
+                // ✅ REQUIERE INVENTARIO
+                Tables\Columns\IconColumn::make('reqInventario.nombre')
+                    ->label('Inventario')
+                    ->icon(fn(string $state): string => match ($state) {
+                        'Si' => 'heroicon-o-check-circle',
+                        'No' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-question-mark-circle',
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'Si' => 'success',
+                        'No' => 'danger',
+                        default => 'gray',
+                    })
+                    ->tooltip('Requiere Inventario')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                
+                // ✅ REQUIERE SERIE
+                Tables\Columns\IconColumn::make('reqSerie.nombre')
+                    ->label('Serie Req')
+                    ->icon(fn(string $state): string => match ($state) {
+                        'Si' => 'heroicon-o-check-circle',
+                        'No' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-question-mark-circle',
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'Si' => 'success',
+                        'No' => 'danger',
+                        default => 'gray',
+                    })
+                    ->tooltip('Requiere Serie')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                
+                // ✅ REQUIERE LOTE
+                Tables\Columns\IconColumn::make('reqLote.nombre')
+                    ->label('Lote Req')
+                    ->icon(fn(string $state): string => match ($state) {
+                        'Si' => 'heroicon-o-check-circle',
+                        'No' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-question-mark-circle',
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'Si' => 'success',
+                        'No' => 'danger',
+                        default => 'gray',
+                    })
+                    ->tooltip('Requiere Lote')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                
+                // ✅ REQUIERE CALIBRACIÓN
+                Tables\Columns\IconColumn::make('reqCalibracion.nombre')
+                    ->label('Calib Req')
+                    ->icon(fn(string $state): string => match ($state) {
+                        'Si' => 'heroicon-o-check-circle',
+                        'No' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-question-mark-circle',
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'Si' => 'success',
+                        'No' => 'danger',
+                        default => 'gray',
+                    })
+                    ->tooltip('Requiere Calibración')
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                
+                // ✅ PRÓXIMA RECALIBRACIÓN
                 Tables\Columns\TextColumn::make('proxima_recalibracion_formatted')
-                    ->label('Próxima recalibración')
+                    ->label('Próx. Recalibración')
                     ->sortable(false)
                     ->badge()
                     ->color(fn($record) => $record->proxima_recalibracion_color)
-                    ->toggleable(isToggledHiddenByDefault: false),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
                 
+                // ✅ FECHA CREACIÓN
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime('d/m/Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
             ])
             
             ->filters([
@@ -548,7 +648,7 @@ class ProductoResource extends Resource
                 Tables\Filters\SelectFilter::make('req_inventario_id')
                     ->label('Requiere Inventario')
                     ->options([
-                        '2' => 'Sí',
+                        '2' => 'Si',
                         '3' => 'No',
                     ])
                     ->multiple(),
@@ -556,7 +656,7 @@ class ProductoResource extends Resource
                 Tables\Filters\SelectFilter::make('req_serie_id')
                     ->label('Requiere Serie')
                     ->options([
-                        '2' => 'Sí',
+                        '2' => 'Si',
                         '3' => 'No',
                     ])
                     ->multiple(),
@@ -564,7 +664,7 @@ class ProductoResource extends Resource
                 Tables\Filters\SelectFilter::make('req_lote_id')
                     ->label('Requiere Lote')
                     ->options([
-                        '2' => 'Sí',
+                        '2' => 'Si',
                         '3' => 'No',
                     ])
                     ->multiple(),
@@ -572,7 +672,7 @@ class ProductoResource extends Resource
                 Tables\Filters\SelectFilter::make('req_calibracion_id')
                     ->label('Requiere Calibración')
                     ->options([
-                        '1' => 'Sí',
+                        '1' => 'Si',
                         '2' => 'No',
                     ])
                     ->multiple(),
@@ -806,4 +906,4 @@ class ProductoResource extends Resource
             </div>
         HTML);
     }
-}   
+}
