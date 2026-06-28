@@ -232,6 +232,77 @@ class ProductoResource extends Resource
                     ])
                     ->collapsible()
                     ->collapsed(fn($record) => !$record?->recalibraciones()->exists()),
+
+                // ==================== ✅ NUEVA SECCIÓN: HISTORIAL DE CAMBIOS ====================
+                Forms\Components\Section::make('📋 Historial de Cambios')
+                    ->label('Historial de Cambios')
+                    ->schema([
+                        Forms\Components\Placeholder::make('historial')
+                            ->label('')
+                            ->content(function ($record) {
+                                if (!$record) {
+                                    return 'No hay historial disponible para un producto nuevo.';
+                                }
+                                
+                                $logs = $record->activities()->latest()->get();
+                                
+                                if ($logs->isEmpty()) {
+                                    return 'No hay cambios registrados para este producto.';
+                                }
+                                
+                                $html = '<div class="space-y-4 max-h-[400px] overflow-y-auto p-2">';
+                                foreach ($logs as $log) {
+                                    $user = $log->causer ? $log->causer->name : 'Sistema';
+                                    $date = $log->created_at->format('d/m/Y H:i:s');
+                                    $event = $log->event ?? 'cambio';
+                                    $description = $log->description ?? 'Sin descripción';
+                                    
+                                    $badgeColor = match($event) {
+                                        'creado' => 'success',
+                                        'actualizado' => 'info',
+                                        'eliminado' => 'danger',
+                                        'restaurado' => 'warning',
+                                        default => 'secondary',
+                                    };
+                                    
+                                    // Obtener cambios formateados
+                                    $changesHtml = '';
+                                    if ($log->properties && isset($log->properties['changes_formatted'])) {
+                                        $changes = $log->properties['changes_formatted'];
+                                        if (!empty($changes)) {
+                                            $changesHtml = '<ul class="text-sm text-gray-600 ml-4 mt-2 list-disc">';
+                                            foreach ($changes as $change) {
+                                                $changesHtml .= "<li>{$change}</li>";
+                                            }
+                                            $changesHtml .= '</ul>';
+                                        }
+                                    }
+                                    
+                                    $html .= <<<HTML
+                                        <div class="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-white">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{$badgeColor}-100 text-{$badgeColor}-800">
+                                                        {$event}
+                                                    </span>
+                                                    <span class="text-sm font-medium ml-2">{$description}</span>
+                                                </div>
+                                                <div class="text-xs text-gray-500 text-right flex-shrink-0 ml-4">
+                                                    <div class="font-medium">👤 {$user}</div>
+                                                    <div>🕐 {$date}</div>
+                                                </div>
+                                            </div>
+                                            {$changesHtml}
+                                        </div>
+                                    HTML;
+                                }
+                                $html .= '</div>';
+                                
+                                return new HtmlString($html);
+                            }),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn($record) => !$record?->activities()->exists()),
             ]);
     }
 
@@ -386,6 +457,68 @@ class ProductoResource extends Resource
                             'Content-Type' => 'application/pdf',
                         ]);
                     }),
+                
+                // ✅ BOTÓN DE HISTORIAL GLOBAL
+                Action::make('historial_global')
+                    ->label('📋 Historial Global')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->modalHeading('Historial de Cambios - Productos')
+                    ->modalContent(function () {
+                        $logs = \Spatie\Activitylog\Models\Activity::where('log_name', 'producto')
+                            ->with('causer')
+                            ->latest()
+                            ->limit(100)
+                            ->get();
+                        
+                        if ($logs->isEmpty()) {
+                            return new HtmlString('<div class="text-center text-gray-500 p-8">No hay registros de actividad.</div>');
+                        }
+                        
+                        $html = '<div class="space-y-3 max-h-[70vh] overflow-y-auto p-2">';
+                        foreach ($logs as $log) {
+                            $user = $log->causer ? $log->causer->name : 'Sistema';
+                            $date = $log->created_at->format('d/m/Y H:i:s');
+                            $event = $log->event ?? 'cambio';
+                            
+                            $badgeColor = match($event) {
+                                'creado' => 'success',
+                                'actualizado' => 'info',
+                                'eliminado' => 'danger',
+                                'restaurado' => 'warning',
+                                default => 'secondary',
+                            };
+                            
+                            $subject = $log->subject;
+                            $subjectInfo = $subject ? "{$subject->sku} - {$subject->nombre}" : 'N/A';
+                            
+                            $html .= <<<HTML
+                                <div class="border-b border-gray-200 pb-3 last:border-0 hover:bg-gray-50 p-2 rounded">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{$badgeColor}-100 text-{$badgeColor}-800">
+                                                {$event}
+                                            </span>
+                                            <span class="text-sm ml-2">{$log->description}</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 text-right flex-shrink-0 ml-4">
+                                            <div>👤 {$user}</div>
+                                            <div>🕐 {$date}</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        📦 Producto: <strong>{$subjectInfo}</strong>
+                                    </div>
+                                </div>
+                            HTML;
+                        }
+                        $html .= '</div>';
+                        
+                        return new HtmlString($html);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar')
+                    ->modalWidth('4xl'),
             ])
             
             // COLUMNAS - CON TOGGLES EN TODAS
@@ -764,6 +897,50 @@ class ProductoResource extends Resource
                             ->success()
                             ->send();
                     }),
+                
+                // ✅ NUEVO: VER MOVIMIENTOS DE STOCK
+                Tables\Actions\Action::make('ver_movimientos')
+                    ->label('📊 Movimientos')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->modalHeading(fn ($record) => "Movimientos de Stock - {$record->nombre}")
+                    ->modalContent(function ($record) {
+                        $movimientos = $record->movimientos()->latest()->limit(50)->get();
+                        
+                        if ($movimientos->isEmpty()) {
+                            return new HtmlString('<div class="text-center text-gray-500 p-8">No hay movimientos registrados para este producto.</div>');
+                        }
+                        
+                        $html = '<div class="space-y-2 max-h-[70vh] overflow-y-auto p-2">';
+                        foreach ($movimientos as $mov) {
+                            $tipoColor = $mov->tipo == 'entrada' ? 'success' : 'danger';
+                            $icon = $mov->tipo == 'entrada' ? '📥' : '📤';
+                            $html .= <<<HTML
+                                <div class="border-b border-gray-200 pb-3 last:border-0 hover:bg-gray-50 p-2 rounded">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{$tipoColor}-100 text-{$tipoColor}-800">
+                                                {$icon} {$mov->tipo}
+                                            </span>
+                                            <span class="text-sm ml-2">Cantidad: <strong>{$mov->cantidad}</strong></span>
+                                            <span class="text-xs text-gray-500 ml-2">
+                                                Stock: {$mov->stock_anterior} → {$mov->stock_nuevo}
+                                            </span>
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {$mov->created_at->format('d/m/Y H:i:s')}
+                                        </div>
+                                    </div>
+                                </div>
+                            HTML;
+                        }
+                        $html .= '</div>';
+                        
+                        return new HtmlString($html);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar')
+                    ->modalWidth('4xl'),
                 
                 // Imprimir Etiqueta
                 Tables\Actions\Action::make('imprimir_etiqueta')

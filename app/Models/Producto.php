@@ -5,10 +5,35 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 
+/**
+ * @property int $id
+ * @property string $sku
+ * @property string $modelo
+ * @property string $nombre
+ * @property string|null $serie
+ * @property int $stock
+ * @property string|null $imagen
+ * @property int $unidad_compra_id
+ * @property int $naturaleza_id
+ * @property int $req_inventario_id
+ * @property int $req_serie_id
+ * @property int $req_lote_id
+ * @property int $req_calibracion_id
+ * @property int $estado_id
+ * @property int $categoria_id
+ * @property int $subcategoria_id
+ * @property int $marca_id
+ * @property string|null $descripcion
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon $updated_at
+ */
 class Producto extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'sku',
@@ -29,6 +54,42 @@ class Producto extends Model
         'marca_id',
         'descripcion',
     ];
+
+    // ========== CONFIGURACIÓN DE LOGS ==========
+    
+    protected static $logAttributes = [
+        'sku',
+        'modelo',
+        'nombre',
+        'serie',
+        'stock',
+        'imagen',
+        'categoria_id',
+        'subcategoria_id',
+        'marca_id',
+        'unidad_compra_id',
+        'naturaleza_id',
+        'req_inventario_id',
+        'req_serie_id',
+        'req_lote_id',
+        'req_calibracion_id',
+        'estado_id',
+        'descripcion',
+    ];
+
+    protected static $logOnlyDirty = true;
+    protected static $logFillable = true;
+    protected static $logName = 'producto';
+    protected static $ignoreChangedAttributes = ['updated_at'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => "Producto {$eventName}");
+    }
 
     // ========== ACCESORS PARA IMAGEN ==========
     
@@ -113,11 +174,12 @@ class Producto extends Model
     
     public function getProximaRecalibracionAttribute()
     {
-        return $this->recalibraciones()
+        $recalibracion = $this->recalibraciones()
             ->whereNotNull('proxima_recalibracion')
             ->orderBy('proxima_recalibracion', 'asc')
-            ->first()
-            ?->proxima_recalibracion;
+            ->first();
+            
+        return $recalibracion?->proxima_recalibracion;
     }
 
     public function getProximaRecalibracionColorAttribute()
@@ -134,23 +196,16 @@ class Producto extends Model
         return 'success';
     }
 
-    /**
-     * ✅ Formato para mostrar en la tabla - CON DÍAS ENTEROS
-     */
     public function getProximaRecalibracionFormattedAttribute()
     {
         $proxima = $this->proxima_recalibracion;
         if (!$proxima) return '📅 No programada';
         
-        // ✅ CALCULAR DÍAS ENTEROS
         $hoy = now()->startOfDay();
         $fechaProxima = \Carbon\Carbon::parse($proxima)->startOfDay();
         $dias = (int) $hoy->diffInDays($fechaProxima, false);
         
-        // Si la fecha es hoy
         if ($dias == 0) return '🔴 Hoy';
-        
-        // Si es en el futuro
         if ($dias > 0) {
             if ($dias == 1) return '🟠 Mañana';
             if ($dias <= 7) return '🟡 En ' . $dias . ' días';
@@ -158,7 +213,6 @@ class Producto extends Model
             return '✅ En ' . $dias . ' días';
         }
         
-        // Si es en el pasado (vencido)
         $diasVencido = abs($dias);
         if ($diasVencido == 1) return '⚠️ Vencido hace 1 día';
         return '⚠️ Vencido hace ' . $diasVencido . ' días';
@@ -167,5 +221,12 @@ class Producto extends Model
     public function getNombreCompletoAttribute()
     {
         return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
+    }
+
+    // ========== ACTIVITY LOG RELATION ==========
+    
+    public function activities()
+    {
+        return $this->morphMany(Activity::class, 'subject');
     }
 }
