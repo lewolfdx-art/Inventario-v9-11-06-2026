@@ -6,6 +6,7 @@ use App\Models\Producto;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Filament\Notifications\Actions\Action;
+use Illuminate\Support\Facades\Session;
 
 class NotificationService
 {
@@ -14,6 +15,11 @@ class NotificationService
      */
     public static function checkStockBajo()
     {
+        // ✅ Verificar si ya se envió esta notificación en esta sesión
+        if (Session::has('stock_bajo_notificado')) {
+            return;
+        }
+
         // Productos con stock <= 5 (incluyendo 0)
         $productos = Producto::with(['categoria', 'marca'])
             ->where('stock', '<=', 5)
@@ -42,7 +48,7 @@ class NotificationService
             ->body($body)
             ->icon('heroicon-o-exclamation-triangle')
             ->iconColor('danger')
-            ->duration(60000)
+            ->duration(1000) // ✅ 5 segundos (5000 milisegundos)
             ->actions([
                 Action::make('ver')
                     ->label('Ver todos los productos')
@@ -53,8 +59,11 @@ class NotificationService
                     ->url('/admin/productos?tableFilters[stock][value]=0')
                     ->color('danger'),
             ])
-            ->persistent()
+            // ❌ ELIMINAR persistent() PARA QUE DESAPAREZCA
             ->send();
+
+        // ✅ Marcar como notificado en esta sesión
+        Session::put('stock_bajo_notificado', true);
     }
 
     /**
@@ -62,6 +71,11 @@ class NotificationService
      */
     public static function checkRecalibraciones()
     {
+        // ✅ Verificar si ya se envió esta notificación en esta sesión
+        if (Session::has('recalibraciones_notificado')) {
+            return;
+        }
+
         $hoy = Carbon::now()->startOfDay();
         $treintaDias = $hoy->copy()->addDays(30);
         
@@ -138,7 +152,7 @@ class NotificationService
             ->body($mensaje)
             ->icon('heroicon-o-calendar')
             ->iconColor($iconColor)
-            ->duration(60000)
+            ->duration(1000) // ✅ 5 segundos (5000 milisegundos)
             ->actions([
                 Action::make('ver')
                     ->label('Ver todos los productos')
@@ -149,15 +163,23 @@ class NotificationService
                     ->url('/admin/productos?tableFilters[estado][value]=vencido')
                     ->color('danger'),
             ])
-            ->persistent()
+            // ❌ ELIMINAR persistent() PARA QUE DESAPAREZCA
             ->send();
+
+        // ✅ Marcar como notificado en esta sesión
+        Session::put('recalibraciones_notificado', true);
     }
 
     /**
      * Ejecutar todas las verificaciones
+     * ✅ Resetea las banderas de sesión para que las notificaciones se muestren de nuevo al recargar
      */
     public static function runAllChecks()
     {
+        // ✅ Eliminar banderas de sesión para que se vuelvan a mostrar
+        Session::forget('stock_bajo_notificado');
+        Session::forget('recalibraciones_notificado');
+        
         self::checkStockBajo();
         self::checkRecalibraciones();
     }

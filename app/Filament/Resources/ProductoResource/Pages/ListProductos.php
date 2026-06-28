@@ -14,7 +14,7 @@ class ListProductos extends ListRecords
     protected static string $resource = ProductoResource::class;
 
     public $contador_escaneos = 0;
-    public $scanner_code = ''; // ✅ Campo exclusivo para el escáner
+    public $scanner_code = '';
 
     protected function getHeaderActions(): array
     {
@@ -25,18 +25,39 @@ class ListProductos extends ListRecords
         ];
     }
 
-    // ✅ Captura el escaneo desde el campo "scanner_code"
     public function updatedScannerCode($value): void
     {
         if (!empty($value) && strlen($value) > 3) {
-            $sku = str_replace(["'", "´", "`"], '-', $value);
+            // ✅ LIMPIAR EL SKU: eliminar caracteres no deseados
+            $sku = trim($value);
+            
+            // ✅ Eliminar prefijos como : :: > y otros caracteres extra
+            $sku = ltrim($sku, ':>');
+            $sku = trim($sku);
+            
+            // ✅ Reemplazar acentos y caracteres especiales
+            $sku = str_replace(["'", "´", "`", '"', ';'], '-', $sku);
+            
+            // ✅ Eliminar espacios dobles y caracteres no permitidos
+            $sku = preg_replace('/[^a-zA-Z0-9\-]/', '', $sku);
             
             $producto = Producto::where('sku', $sku)->first();
             
             if ($producto) {
                 $this->ejecutarEscaneo($sku);
-                $this->scanner_code = ''; // ✅ Limpiar campo de escáner
+                $this->scanner_code = '';
             } else {
+                // ✅ Intentar buscar sin el 0 si tiene
+                if (str_starts_with($sku, '0')) {
+                    $skuSinCero = substr($sku, 1);
+                    $producto = Producto::where('sku', $skuSinCero)->first();
+                    if ($producto) {
+                        $this->ejecutarEscaneo($skuSinCero);
+                        $this->scanner_code = '';
+                        return;
+                    }
+                }
+                
                 Notification::make()
                     ->title('❌ Producto no encontrado')
                     ->body('No se encontró ningún producto con SKU: ' . $sku)

@@ -12,8 +12,6 @@ class Escaner extends Component
     public $mensaje = '';
     public $contador = 0;
     public $ultimo_producto = null;
-    
-    // ✅ Nuevas variables para conteos separados
     public $entradas = 0;
     public $salidas = 0;
     
@@ -22,16 +20,37 @@ class Escaner extends Component
     public function mount()
     {
         $this->contador = session('contador_escaner', 0);
-        
-        // ✅ Calcular entradas y salidas basado en el contador
-        $this->entradas = ceil($this->contador / 2); // Redondear hacia arriba
-        $this->salidas = floor($this->contador / 2); // Redondear hacia abajo
+        $this->entradas = ceil($this->contador / 2);
+        $this->salidas = floor($this->contador / 2);
     }
     
+    /**
+     * ✅ LIMPIAR SKU: Eliminar caracteres no deseados
+     */
     private function normalizarSku($sku)
     {
-        $sku = str_replace(["'", "´", "`", '"', "’", "‘", " "], '-', $sku);
-        $sku = str_replace(' ', '', $sku);
+        // Limpiar espacios
+        $sku = trim($sku);
+        
+        // Eliminar prefijos como : :: > al inicio
+        $sku = ltrim($sku, ':>');
+        $sku = trim($sku);
+        
+        // Reemplazar apóstrofes, comillas y acentos por guiones
+        $sku = str_replace(["'", "´", "`", '"', "’", "‘", ";"], '-', $sku);
+        
+        // Reemplazar espacios por guiones
+        $sku = str_replace(' ', '-', $sku);
+        
+        // Eliminar caracteres no permitidos (solo letras, números y guiones)
+        $sku = preg_replace('/[^a-zA-Z0-9\-]/', '', $sku);
+        
+        // Eliminar guiones duplicados
+        $sku = preg_replace('/-+/', '-', $sku);
+        
+        // Eliminar guiones al inicio o final
+        $sku = trim($sku, '-');
+        
         return strtoupper($sku);
     }
     
@@ -44,11 +63,22 @@ class Escaner extends Component
         
         $skuNormalizado = $this->normalizarSku($this->codigo);
         
+        // Buscar por SKU normalizado
         $producto = Producto::where('sku', $skuNormalizado)->first();
         
+        // Si no se encuentra, buscar sin guiones
         if (!$producto) {
             $skuSinGuion = str_replace('-', '', $skuNormalizado);
             $producto = Producto::where('sku', $skuSinGuion)->first();
+        }
+        
+        // Si no se encuentra, buscar con 0 al inicio (si el SKU empieza con 0)
+        if (!$producto && str_starts_with($skuNormalizado, '0')) {
+            $skuSinCero = substr($skuNormalizado, 1);
+            $producto = Producto::where('sku', $skuSinCero)->first();
+            if ($producto) {
+                $skuNormalizado = $skuSinCero;
+            }
         }
         
         if (!$producto) {
@@ -57,14 +87,11 @@ class Escaner extends Component
             return;
         }
         
-        // ✅ Incrementar contador
+        // Incrementar contador
         $this->contador++;
-        
-        // ✅ Calcular entradas y salidas
         $this->entradas = ceil($this->contador / 2);
         $this->salidas = floor($this->contador / 2);
         
-        // Determinar tipo (impar = entrada, par = salida)
         $tipo = ($this->contador % 2 == 1) ? 'entrada' : 'salida';
         $stockAnterior = $producto->stock ?? 0;
         
@@ -94,10 +121,8 @@ class Escaner extends Component
         ]);
         
         session(['contador_escaner' => $this->contador]);
-        
         $this->ultimo_producto = $producto;
         
-        // ✅ Mostrar el tipo en el mensaje
         $icono = ($tipo == 'entrada') ? '📥' : '📤';
         $this->mensaje = "✅ {$icono} {$tipo} registrada: {$producto->nombre} (Stock: {$stockAnterior} → {$nuevoStock})";
         
