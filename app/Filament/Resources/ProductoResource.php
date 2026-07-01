@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProductoResource\Pages;
 use App\Models\Producto;
 use App\Models\Movimiento;
+use App\Models\MovimientoFoto;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -20,6 +21,10 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Tables\Columns\ImageColumn;
 use Illuminate\Support\HtmlString;
 use Picqer\Barcode\BarcodeGeneratorPNG;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
+Log::info('=== ProductoResource cargado ===');
 
 class ProductoResource extends Resource
 {
@@ -176,7 +181,7 @@ class ProductoResource extends Resource
                             ->label('Descripción'),
                     ]),
 
-                // ✅ SECCIÓN DE RECALIBRACIONES - OPCIÓN 3 (SIN VALIDACIÓN)
+                // ✅ SECCIÓN DE RECALIBRACIONES
                 Forms\Components\Section::make('Historial de Recalibraciones')
                     ->description('Registra cada recalibración realizada al producto. El sistema mostrará alertas cuando se acerque la próxima fecha.')
                     ->schema([
@@ -233,7 +238,7 @@ class ProductoResource extends Resource
                     ->collapsible()
                     ->collapsed(fn($record) => !$record?->recalibraciones()->exists()),
 
-                // ==================== ✅ NUEVA SECCIÓN: HISTORIAL DE CAMBIOS ====================
+                // ==================== ✅ SECCIÓN: HISTORIAL DE CAMBIOS ====================
                 Forms\Components\Section::make('📋 Historial de Cambios')
                     ->label('Historial de Cambios')
                     ->schema([
@@ -265,7 +270,6 @@ class ProductoResource extends Resource
                                         default => 'secondary',
                                     };
                                     
-                                    // Obtener cambios formateados
                                     $changesHtml = '';
                                     if ($log->properties && isset($log->properties['changes_formatted'])) {
                                         $changes = $log->properties['changes_formatted'];
@@ -544,7 +548,7 @@ class ProductoResource extends Resource
                         'class' => 'cursor-pointer hover:shadow-lg transition-shadow rounded-full',
                         'title' => 'Haz clic para ampliar'
                     ])
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ CÓDIGO DE BARRAS
                 ImageColumn::make('barcode')
@@ -557,7 +561,7 @@ class ProductoResource extends Resource
                         'style' => 'image-rendering: crisp-edges; background: white; padding: 4px; border-radius: 4px; width: 100%; height: auto; object-fit: contain;',
                     ])
                     ->placeholder('Sin SKU')
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ SKU
                 Tables\Columns\TextColumn::make('sku')
@@ -567,28 +571,28 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color('primary')
                     ->copyable()
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ MODELO
                 Tables\Columns\TextColumn::make('modelo')
                     ->label('Modelo')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ NOMBRE
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ SERIE
                 Tables\Columns\TextColumn::make('serie')
                     ->label('Serie')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ STOCK
                 Tables\Columns\TextColumn::make('stock')
@@ -597,7 +601,7 @@ class ProductoResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ CATEGORÍA
                 Tables\Columns\TextColumn::make('categoria.nombre')
@@ -606,7 +610,7 @@ class ProductoResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('info')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ SUBCATEGORÍA
                 Tables\Columns\TextColumn::make('subcategoria.nombre')
@@ -615,7 +619,7 @@ class ProductoResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('warning')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ MARCA
                 Tables\Columns\TextColumn::make('marca.nombre')
@@ -624,14 +628,14 @@ class ProductoResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('secondary')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ UNIDAD DE COMPRA
                 Tables\Columns\TextColumn::make('unidadCompra.nombre')
                     ->label('Unidad')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ NATURALEZA
                 Tables\Columns\TextColumn::make('naturaleza.nombre')
@@ -644,7 +648,7 @@ class ProductoResource extends Resource
                         'intangible' => 'warning',
                         default => 'gray',
                     })
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ ESTADO
                 Tables\Columns\TextColumn::make('estado.nombre')
@@ -657,7 +661,7 @@ class ProductoResource extends Resource
                         'inactivo' => 'danger',
                         default => 'gray',
                     })
-                    ->toggleable(isToggledHiddenByDefault: false), // ✅ VISIBLE POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: false),
                 
                 // ✅ REQUIERE INVENTARIO
                 Tables\Columns\IconColumn::make('reqInventario.nombre')
@@ -673,7 +677,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->tooltip('Requiere Inventario')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ REQUIERE SERIE
                 Tables\Columns\IconColumn::make('reqSerie.nombre')
@@ -689,7 +693,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->tooltip('Requiere Serie')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ REQUIERE LOTE
                 Tables\Columns\IconColumn::make('reqLote.nombre')
@@ -705,7 +709,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->tooltip('Requiere Lote')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ REQUIERE CALIBRACIÓN
                 Tables\Columns\IconColumn::make('reqCalibracion.nombre')
@@ -721,7 +725,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->tooltip('Requiere Calibración')
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ PRÓXIMA RECALIBRACIÓN
                 Tables\Columns\TextColumn::make('proxima_recalibracion_formatted')
@@ -729,14 +733,14 @@ class ProductoResource extends Resource
                     ->sortable(false)
                     ->badge()
                     ->color(fn($record) => $record->proxima_recalibracion_color)
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 // ✅ FECHA CREACIÓN
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime('d/m/Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // ✅ OCULTO POR DEFECTO
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             
             ->filters([
@@ -829,12 +833,250 @@ class ProductoResource extends Resource
                     ->columnSpanFull(),
             ])
             
-            // ACCIONES POR FILA
+            // ==================== ✅ ACCIONES POR FILA ====================
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 
-                // 📥 ENTRADA
+                // ==================== ✅ ACCIONES CON FOTOS ====================
+                
+                // 📥 FOTOENT - Entrada con Fotos
+                Tables\Actions\Action::make('fotoent')
+                    ->label('📥 FotoEnt')
+                    ->icon('heroicon-o-arrow-up-circle')
+                    ->color('gray')
+                    ->modalHeading('Registrar Entrada de Equipo con Fotos')
+                    ->modalDescription('Registra la entrada del equipo y adjunta fotos del estado actual')
+                    ->form([
+                        Forms\Components\TextInput::make('cantidad')
+                            ->label('Cantidad')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(1)
+                            ->required(),
+                        
+                        Forms\Components\Textarea::make('observaciones')
+                            ->label('Observaciones')
+                            ->placeholder('Ej: Equipo regresa de reparación, estado...')
+                            ->rows(3),
+                        
+                        Forms\Components\TextInput::make('realizado_por')
+                            ->label('Recibido por')
+                            ->placeholder('Nombre de la persona que recibe')
+                            ->maxLength(100)
+                            ->default(Auth::user()?->name ?? 'Sistema'),
+                        
+                        Forms\Components\FileUpload::make('fotos')
+                            ->label('📸 Fotos del equipo (al regresar)')
+                            ->multiple()
+                            ->image()
+                            ->directory('movimientos/entrada')
+                            ->visibility('public')
+                            ->maxFiles(10)
+                            ->imageEditor()
+                            ->helperText('Toma fotos del estado del equipo cuando regresa')
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function ($record, array $data, $livewire) {
+                        Log::info('========== FOTOENT INICIADO ==========');
+                        
+                        $stockAnterior = $record->stock ?? 0;
+                        $cantidad = $data['cantidad'] ?? 1;
+                        $nuevoStock = $stockAnterior + $cantidad;
+                        
+                        $fotos = $livewire->data['fotos'] ?? $data['fotos'] ?? [];
+                        Log::info('Fotos desde Livewire:', ['count' => count($fotos)]);
+                        
+                        $movimiento = Movimiento::create([
+                            'producto_id' => $record->id,
+                            'tipo' => 'entrada',
+                            'cantidad' => $cantidad,
+                            'stock_anterior' => $stockAnterior,
+                            'stock_nuevo' => $nuevoStock,
+                            'observaciones' => $data['observaciones'] ?? null,
+                            'realizado_por' => $data['realizado_por'] ?? Auth::user()?->name ?? 'Sistema',
+                        ]);
+                        
+                        Log::info('Movimiento creado:', ['id' => $movimiento->id]);
+                        
+                        $fotosGuardadas = 0;
+                        
+                        if (!empty($fotos) && is_array($fotos)) {
+                            Log::info('Procesando ' . count($fotos) . ' foto(s)...');
+                            
+                            foreach ($fotos as $foto) {
+                                try {
+                                    if ($foto instanceof TemporaryUploadedFile) {
+                                        $path = $foto->store('movimientos/entrada', 'public');
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $path,
+                                            'descripcion' => 'Foto de entrada',
+                                            'tipo' => 'entrada',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    } elseif (is_string($foto)) {
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $foto,
+                                            'descripcion' => 'Foto de entrada',
+                                            'tipo' => 'entrada',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    } elseif (is_array($foto) && isset($foto['path'])) {
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $foto['path'],
+                                            'descripcion' => 'Foto de entrada',
+                                            'tipo' => 'entrada',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::error('Error guardando foto de entrada:', ['msg' => $e->getMessage()]);
+                                }
+                            }
+                        }
+                        
+                        Log::info('Total fotos guardadas en ENTRADA: ' . $fotosGuardadas);
+                        
+                        $record->stock = $nuevoStock;
+                        $record->save();
+                        
+                        Log::info('========== FOTOENT FINALIZADO ==========');
+                        
+                        Notification::make()
+                            ->title('📥 Entrada registrada con éxito')
+                            ->body("{$record->nombre}: {$stockAnterior} → {$nuevoStock} | Fotos: {$fotosGuardadas}")
+                            ->success()
+                            ->send();
+                    }),
+                
+                // 📤 FOTOSAL - Salida con Fotos
+                Tables\Actions\Action::make('fotosal')
+                    ->label('📤 FotoSal')
+                    ->icon('heroicon-o-arrow-down-circle')
+                    ->color('gray')
+                    ->modalHeading('Registrar Salida de Equipo con Fotos')
+                    ->modalDescription('Registra la salida del equipo y adjunta fotos del estado actual')
+                    ->form([
+                        Forms\Components\TextInput::make('cantidad')
+                            ->label('Cantidad')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(1)
+                            ->required(),
+                        
+                        Forms\Components\Textarea::make('observaciones')
+                            ->label('Observaciones')
+                            ->placeholder('Ej: Equipo sale para reparación, estado actual...')
+                            ->rows(3),
+                        
+                        Forms\Components\TextInput::make('realizado_por')
+                            ->label('Realizado por')
+                            ->placeholder('Nombre de la persona que retira')
+                            ->maxLength(100)
+                            ->default(Auth::user()?->name ?? 'Sistema'),
+                        
+                        Forms\Components\FileUpload::make('fotos')
+                            ->label('📸 Fotos del equipo (al salir)')
+                            ->multiple()
+                            ->image()
+                            ->directory('movimientos/salida')
+                            ->visibility('public')
+                            ->maxFiles(10)
+                            ->imageEditor()
+                            ->helperText('Toma fotos del estado actual del equipo antes de que salga')
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function ($record, array $data, $livewire) {
+                        Log::info('========== FOTOSAL INICIADO ==========');
+                        
+                        $stockAnterior = $record->stock ?? 0;
+                        $cantidad = $data['cantidad'] ?? 1;
+                        
+                        if ($stockAnterior < $cantidad) {
+                            Notification::make()
+                                ->title('❌ Stock insuficiente')
+                                ->body("Stock actual: {$stockAnterior}, solicitado: {$cantidad}")
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+                        
+                        $nuevoStock = $stockAnterior - $cantidad;
+                        
+                        $fotos = $livewire->data['fotos'] ?? $data['fotos'] ?? [];
+                        Log::info('Fotos desde Livewire:', ['count' => count($fotos)]);
+                        
+                        $movimiento = Movimiento::create([
+                            'producto_id' => $record->id,
+                            'tipo' => 'salida',
+                            'cantidad' => $cantidad,
+                            'stock_anterior' => $stockAnterior,
+                            'stock_nuevo' => $nuevoStock,
+                            'observaciones' => $data['observaciones'] ?? null,
+                            'realizado_por' => $data['realizado_por'] ?? Auth::user()?->name ?? 'Sistema',
+                        ]);
+                        
+                        Log::info('Movimiento creado:', ['id' => $movimiento->id]);
+                        
+                        $fotosGuardadas = 0;
+                        
+                        if (!empty($fotos) && is_array($fotos)) {
+                            Log::info('Procesando ' . count($fotos) . ' foto(s)...');
+                            
+                            foreach ($fotos as $foto) {
+                                try {
+                                    if ($foto instanceof TemporaryUploadedFile) {
+                                        $path = $foto->store('movimientos/salida', 'public');
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $path,
+                                            'descripcion' => 'Foto de salida',
+                                            'tipo' => 'salida',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    } elseif (is_string($foto)) {
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $foto,
+                                            'descripcion' => 'Foto de salida',
+                                            'tipo' => 'salida',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    } elseif (is_array($foto) && isset($foto['path'])) {
+                                        MovimientoFoto::create([
+                                            'movimiento_id' => $movimiento->id,
+                                            'ruta_imagen' => $foto['path'],
+                                            'descripcion' => 'Foto de salida',
+                                            'tipo' => 'salida',
+                                        ]);
+                                        $fotosGuardadas++;
+                                    }
+                                } catch (\Exception $e) {
+                                    Log::error('Error guardando foto de salida:', ['msg' => $e->getMessage()]);
+                                }
+                            }
+                        }
+                        
+                        Log::info('Total fotos guardadas en SALIDA: ' . $fotosGuardadas);
+                        
+                        $record->stock = $nuevoStock;
+                        $record->save();
+                        
+                        Log::info('========== FOTOSAL FINALIZADO ==========');
+                        
+                        Notification::make()
+                            ->title('📤 Salida registrada con éxito')
+                            ->body("{$record->nombre}: {$stockAnterior} → {$nuevoStock} | Fotos: {$fotosGuardadas}")
+                            ->success()
+                            ->send();
+                    }),
+                
+                // ==================== ACCIONES EXISTENTES ====================
+                
+                // 📥 ENTRADA (rápida)
                 Tables\Actions\Action::make('entrada')
                     ->label('📥 Entrada')
                     ->icon('heroicon-o-arrow-up-circle')
@@ -852,6 +1094,8 @@ class ProductoResource extends Resource
                             'cantidad' => 1,
                             'stock_anterior' => $stockAnterior,
                             'stock_nuevo' => $nuevoStock,
+                            'observaciones' => 'Entrada rápida',
+                            'realizado_por' => Auth::user()?->name ?? 'Sistema',
                         ]);
                         
                         Notification::make()
@@ -861,7 +1105,7 @@ class ProductoResource extends Resource
                             ->send();
                     }),
                 
-                // 📤 SALIDA
+                // 📤 SALIDA (rápida)
                 Tables\Actions\Action::make('salida')
                     ->label('📤 Salida')
                     ->icon('heroicon-o-arrow-down-circle')
@@ -889,6 +1133,8 @@ class ProductoResource extends Resource
                             'cantidad' => 1,
                             'stock_anterior' => $stockAnterior,
                             'stock_nuevo' => $nuevoStock,
+                            'observaciones' => 'Salida rápida',
+                            'realizado_por' => Auth::user()?->name ?? 'Sistema',
                         ]);
                         
                         Notification::make()
@@ -898,49 +1144,178 @@ class ProductoResource extends Resource
                             ->send();
                     }),
                 
-                // ✅ NUEVO: VER MOVIMIENTOS DE STOCK
-                Tables\Actions\Action::make('ver_movimientos')
-                    ->label('📊 Movimientos')
-                    ->icon('heroicon-o-clock')
-                    ->color('gray')
-                    ->modalHeading(fn ($record) => "Movimientos de Stock - {$record->nombre}")
-                    ->modalContent(function ($record) {
-                        $movimientos = $record->movimientos()->latest()->limit(50)->get();
+                // ==================== ✅ SHOW FOTOS CON SCROLL ====================
+                Tables\Actions\Action::make('show_fotos')
+                ->label('📸 Show Fotos')
+                ->icon('heroicon-o-photo')
+                ->color('info')
+                ->modalHeading(fn ($record) => "Historial de Fotos - {$record->nombre}")
+                ->modalContent(function ($record) {
+                    // ✅ CARGAR TODOS LOS MOVIMIENTOS
+                    $fotosQuery = MovimientoFoto::whereHas('movimiento', function ($query) use ($record) {
+                        $query->where('producto_id', $record->id);
+                    })
+                    ->with('movimiento')
+                    ->latest()
+                    ->get();
+            
+                    if ($fotosQuery->isEmpty()) {
+                        return new HtmlString('<div class="text-center text-gray-600 dark:text-gray-400 p-8">📷 No hay fotos registradas para este producto.</div>');
+                    }
+            
+                    $movimientosAgrupados = $fotosQuery->groupBy('movimiento_id');
+                    $totalMovimientos = $movimientosAgrupados->count();
+            
+                    // ✅ SCROLL EN EL MODAL
+                    $html = '<div class="space-y-6 max-h-[75vh] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">';
+            
+                    foreach ($movimientosAgrupados as $movimientoId => $fotosDelMovimiento) {
+                        $movimiento = $fotosDelMovimiento->first()->movimiento;
                         
-                        if ($movimientos->isEmpty()) {
-                            return new HtmlString('<div class="text-center text-gray-500 p-8">No hay movimientos registrados para este producto.</div>');
-                        }
+                        $tipoColor = $movimiento->tipo == 'entrada' ? 'green' : 'red';
+                        $tipoBg = $movimiento->tipo == 'entrada' ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900';
+                        $tipoText = $movimiento->tipo == 'entrada' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300';
                         
-                        $html = '<div class="space-y-2 max-h-[70vh] overflow-y-auto p-2">';
-                        foreach ($movimientos as $mov) {
-                            $tipoColor = $mov->tipo == 'entrada' ? 'success' : 'danger';
-                            $icon = $mov->tipo == 'entrada' ? '📥' : '📤';
+                        $icon = $movimiento->tipo == 'entrada' ? '📥' : '📤';
+                        $tipoLabel = ucfirst($movimiento->tipo);
+                        $realizadoPor = $movimiento->realizado_por ?? 'Sistema';
+                        $fecha = $movimiento->created_at->format('d/m/Y H:i:s');
+                        $observaciones = $movimiento->observaciones ?? '';
+            
+                        $html .= <<<HTML
+                            <div class="border rounded-xl p-5 bg-white dark:bg-gray-800 shadow-sm">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {$tipoBg} {$tipoText}">
+                                            {$icon} {$tipoLabel}
+                                        </span>
+                                        <span class="text-sm ml-3 font-semibold text-gray-800 dark:text-gray-200">Cantidad: {$movimiento->cantidad}</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                            Stock: {$movimiento->stock_anterior} → {$movimiento->stock_nuevo}
+                                        </span>
+                                    </div>
+                                    <div class="text-right text-xs text-gray-500 dark:text-gray-400">
+                                        <div>{$fecha}</div>
+                                        <div>👤 {$realizadoPor}</div>
+                                    </div>
+                                </div>
+            
+                                <div class="text-sm text-gray-800 dark:text-white mb-4 font-medium">{$observaciones}</div>
+            
+                                <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+                        HTML;
+            
+                        foreach ($fotosDelMovimiento as $foto) {
+                            $url = asset('storage/' . $foto->ruta_imagen);
+                            $descripcion = $foto->descripcion ?? 'Foto del movimiento';
+                            $tipo = $movimiento->tipo;
+            
                             $html .= <<<HTML
-                                <div class="border-b border-gray-200 pb-3 last:border-0 hover:bg-gray-50 p-2 rounded">
-                                    <div class="flex justify-between items-center">
-                                        <div>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{$tipoColor}-100 text-{$tipoColor}-800">
-                                                {$icon} {$mov->tipo}
-                                            </span>
-                                            <span class="text-sm ml-2">Cantidad: <strong>{$mov->cantidad}</strong></span>
-                                            <span class="text-xs text-gray-500 ml-2">
-                                                Stock: {$mov->stock_anterior} → {$mov->stock_nuevo}
-                                            </span>
-                                        </div>
-                                        <div class="text-xs text-gray-500">
-                                            {$mov->created_at->format('d/m/Y H:i:s')}
-                                        </div>
+                                <div class="relative group">
+                                    <img src="{$url}" alt="{$descripcion}"
+                                         class="w-full aspect-square object-cover rounded-xl border border-gray-200 dark:border-gray-600"
+                                         style="max-width: 85px; max-height: 85px;">
+                                    <div class="absolute bottom-0 left-0 right-0 text-white text-[10px] text-center py-1 rounded-b-xl"
+                                         style="background: {$tipoColor};">
+                                        {$tipo}
                                     </div>
                                 </div>
                             HTML;
                         }
-                        $html .= '</div>';
-                        
-                        return new HtmlString($html);
-                    })
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar')
-                    ->modalWidth('4xl'),
+            
+                        $html .= <<<HTML
+                                </div>
+                                <div class="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center">
+                                    📸 {$fotosDelMovimiento->count()} foto(s) en este movimiento
+                                </div>
+                            </div>
+                        HTML;
+                    }
+            
+                    $html .= '</div>';
+            
+                    // ✅ Mostrar total de movimientos
+                    $html .= <<<HTML
+                        <div class="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">
+                            📊 Total: {$totalMovimientos} movimiento(s) registrado(s)
+                        </div>
+                    HTML;
+            
+                    // ✅ SOLO SCRIPTS PARA CIERRE DE MODALES (si los hay)
+                    $html .= <<<HTML
+                        <style>
+                            /* Estilos para la barra de scroll */
+                            .scrollbar-thin::-webkit-scrollbar {
+                                width: 6px;
+                            }
+                            .scrollbar-thin::-webkit-scrollbar-track {
+                                background: transparent;
+                            }
+                            .scrollbar-thin::-webkit-scrollbar-thumb {
+                                background: #cbd5e1;
+                                border-radius: 3px;
+                            }
+                            .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+                                background: #4b5563;
+                            }
+                            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                                background: #94a3b8;
+                            }
+                            .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                                background: #6b7280;
+                            }
+                        </style>
+                    HTML;
+            
+                    return new HtmlString($html);
+                })
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Cerrar')
+                ->modalWidth('6xl')
+                ->modalFooterActions([
+                    Tables\Actions\Action::make('descargar_todas')
+                        ->label('⬇️ Descargar todas')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->action(function ($record) {
+                            $fotos = MovimientoFoto::whereHas('movimiento', function ($query) use ($record) {
+                                $query->where('producto_id', $record->id);
+                            })->get();
+                            
+                            if ($fotos->isEmpty()) {
+                                Notification::make()
+                                    ->title('❌ No hay fotos para descargar')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+                            
+                            $zip = new \ZipArchive();
+                            $zipName = 'fotos_' . $record->sku . '_' . now()->format('Ymd_His') . '.zip';
+                            $zipPath = storage_path('app/temp/' . $zipName);
+                            
+                            if (!is_dir(storage_path('app/temp'))) {
+                                mkdir(storage_path('app/temp'), 0755, true);
+                            }
+                            
+                            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
+                                foreach ($fotos as $foto) {
+                                    $filePath = storage_path('app/public/' . $foto->ruta_imagen);
+                                    if (file_exists($filePath)) {
+                                        $zip->addFile($filePath, basename($filePath));
+                                    }
+                                }
+                                $zip->close();
+                                
+                                return response()->download($zipPath)->deleteFileAfterSend(true);
+                            }
+                            
+                            Notification::make()
+                                ->title('❌ Error al crear el ZIP')
+                                ->danger()
+                                ->send();
+                        }),
+                ]),
                 
                 // Imprimir Etiqueta
                 Tables\Actions\Action::make('imprimir_etiqueta')
@@ -1082,5 +1457,36 @@ class ProductoResource extends Resource
                 />
             </div>
         HTML);
+    }
+
+    /**
+     * Renderiza las fotos de un movimiento para el modal
+     */
+    protected static function renderFotosMovimiento($movimiento): string
+    {
+        if (!$movimiento->fotos || $movimiento->fotos->isEmpty()) {
+            return '<div class="text-xs text-gray-400 mt-1">📷 Sin fotos</div>';
+        }
+        
+        $html = '<div class="flex flex-wrap gap-2 mt-2">';
+        foreach ($movimiento->fotos as $foto) {
+            $url = asset('storage/' . $foto->ruta_imagen);
+            $html .= <<<HTML
+                <div class="relative group">
+                    <img 
+                        src="{$url}" 
+                        alt="Foto de {$movimiento->tipo}"
+                        class="w-20 h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+                        onclick="window.open('{$url}', '_blank')"
+                    />
+                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs text-center py-0.5 rounded-b-lg">
+                        {$movimiento->tipo}
+                    </div>
+                </div>
+            HTML;
+        }
+        $html .= '</div>';
+        
+        return $html;
     }
 }
