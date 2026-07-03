@@ -54,6 +54,16 @@ class MaletinResource extends Resource
                         ->default('activo')
                         ->required()
                         ->columnSpan(2),
+                    
+                    Forms\Components\Select::make('producto_id')
+                        ->label('Asociar a Producto (Manual)')
+                        ->relationship('productos', 'nombre')
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->placeholder('Seleccione uno o más productos...')
+                        ->helperText('Seleccione el/los producto(s) que usarán este maletín')
+                        ->columnSpan(2),
                 ])->columns(2),
                 
                 // ==================== SECCION 2: COMPONENTES DEL EQUIPO ====================
@@ -87,10 +97,9 @@ class MaletinResource extends Resource
                                     ->placeholder('Ej: EQUIPO DE PRUEBAS: OMICRON CMC356 S/N ML142W')
                                     ->columnSpan(2),
                                 
-                                // ✅ SWITCH: DESACTIVADO POR DEFECTO
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
-                                    ->default(false)  // ✅ CAMBIADO a false
+                                    ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
                             ])
@@ -139,10 +148,9 @@ class MaletinResource extends Resource
                                     ->placeholder('Descripcion del accesorio...')
                                     ->columnSpan(2),
                                 
-                                // ✅ SWITCH: DESACTIVADO POR DEFECTO
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
-                                    ->default(false)  // ✅ CAMBIADO a false
+                                    ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
                             ])
@@ -191,10 +199,9 @@ class MaletinResource extends Resource
                                     ->placeholder('Descripcion del accesorio adicional...')
                                     ->columnSpan(2),
                                 
-                                // ✅ SWITCH: DESACTIVADO POR DEFECTO
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
-                                    ->default(false)  // ✅ CAMBIADO a false
+                                    ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
                             ])
@@ -231,31 +238,41 @@ class MaletinResource extends Resource
             ->searchable()
             
             ->columns([
-                // ========== COLUMNA ID ==========
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 
-                // ========== NOMBRE ==========
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre del Maletin')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
-                // ========== FECHA CREACION ==========
+                Tables\Columns\TextColumn::make('productos_asociados')
+                    ->label('Producto Asociado')
+                    ->getStateUsing(function ($record) {
+                        if ($record->productos->isNotEmpty()) {
+                            return '✅ ' . $record->productos->pluck('nombre')->implode(', ');
+                        }
+                        return '❌ Sin asociar';
+                    })
+                    ->badge()
+                    ->color(fn ($state) => str_contains($state, '✅') ? 'success' : 'gray')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->url(fn ($record) => $record->productos->isNotEmpty() ? route('filament.admin.resources.productos.edit', $record->productos->first()) : null)
+                    ->openUrlInNewTab(false)
+                    ->tooltip('Haz clic para ir al producto asociado'),
+                
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Fecha Creacion')
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
-                // ========== COMPONENTES: SOLO LOS QUE ESTAN INCLUIDOS ==========
                 Tables\Columns\TextColumn::make('componentes_contador')
                     ->label('Componentes')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO contar los que tienen incluido = true
                         $count = $record->componentesEquipo->where('incluido', true)->count();
                         return $count . ' elemento(s)';
                     })
@@ -266,7 +283,6 @@ class MaletinResource extends Resource
                 Tables\Columns\TextColumn::make('componentes_resumen')
                     ->label('Resumen Componentes')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO mostrar los que tienen incluido = true
                         $items = $record->componentesEquipo
                             ->where('incluido', true)
                             ->take(3)
@@ -280,11 +296,9 @@ class MaletinResource extends Resource
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
-                // ========== ACCESORIOS: SOLO LOS QUE ESTAN INCLUIDOS ==========
                 Tables\Columns\TextColumn::make('accesorios_contador')
                     ->label('Accesorios')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO contar los que tienen incluido = true
                         $count = $record->accesoriosSet->where('incluido', true)->count();
                         return $count . ' elemento(s)';
                     })
@@ -295,7 +309,6 @@ class MaletinResource extends Resource
                 Tables\Columns\TextColumn::make('accesorios_resumen')
                     ->label('Resumen Accesorios')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO mostrar los que tienen incluido = true
                         $items = $record->accesoriosSet
                             ->where('incluido', true)
                             ->take(3)
@@ -309,11 +322,9 @@ class MaletinResource extends Resource
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
-                // ========== ADICIONALES: SOLO LOS QUE ESTAN INCLUIDOS ==========
                 Tables\Columns\TextColumn::make('adicionales_contador')
                     ->label('Adicionales')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO contar los que tienen incluido = true
                         $count = $record->accesoriosAdicionales->where('incluido', true)->count();
                         return $count . ' elemento(s)';
                     })
@@ -324,7 +335,6 @@ class MaletinResource extends Resource
                 Tables\Columns\TextColumn::make('adicionales_resumen')
                     ->label('Resumen Adicionales')
                     ->getStateUsing(function ($record) {
-                        // ✅ SOLO mostrar los que tienen incluido = true
                         $items = $record->accesoriosAdicionales
                             ->where('incluido', true)
                             ->take(3)
@@ -338,7 +348,6 @@ class MaletinResource extends Resource
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: true),
                 
-                // ========== ESTADO ==========
                 Tables\Columns\TextColumn::make('estado')
                     ->label('Estado')
                     ->badge()
@@ -395,11 +404,76 @@ class MaletinResource extends Resource
             
             // ========== ACCIONES ==========
             ->actions([
+                // ✅ BOTÓN PARA CONVERTIR EN PRODUCTO (PRIMERO)
+                Tables\Actions\Action::make('convertir_producto')
+                    ->label(fn ($record) => $record->productos()->exists() ? '✅ Producto creado' : '📦 Crear Producto')
+                    ->icon(fn ($record) => $record->productos()->exists() ? 'heroicon-o-check-circle' : 'heroicon-o-plus-circle')
+                    ->color(fn ($record) => $record->productos()->exists() ? 'success' : 'primary')
+                    ->requiresConfirmation(fn ($record) => !$record->productos()->exists())
+                    ->modalHeading(fn ($record) => $record->productos()->exists() ? 'Producto ya creado' : 'Crear Producto desde Maletín')
+                    ->modalDescription(fn ($record) => $record->productos()->exists() 
+                        ? 'Este maletín ya tiene un producto asociado: ' . $record->productos->first()->nombre 
+                        : '¿Estás seguro de que deseas crear un producto con este maletín? Se creará con stock 1.'
+                    )
+                    ->modalSubmitActionLabel('Sí, crear producto')
+                    ->modalCancelActionLabel('Cancelar')
+                    ->action(function ($record) {
+                        if ($record->productos()->exists()) {
+                            Notification::make()
+                                ->title('ℹ️ Este maletín ya tiene un producto asociado')
+                                ->body('Producto: ' . $record->productos->first()->nombre)
+                                ->info()
+                                ->send();
+                            return;
+                        }
+                        
+                        // ✅ Obtener categoría "Maleta" y subcategoría "Maletín"
+                        $categoria = \App\Models\Categoria::where('nombre', 'Maleta')->first();
+                        $subcategoria = \App\Models\Subcategoria::where('nombre', 'Maletín')->first();
+                        
+                        // ✅ Crear el producto con categoría y subcategoría
+                        $producto = \App\Models\Producto::create([
+                            'sku' => 'MAL-' . strtoupper(uniqid()),
+                            'modelo' => $record->nombre,
+                            'nombre' => $record->nombre,
+                            'stock' => 1,
+                            'estado_id' => 1,
+                            'categoria_id' => $categoria?->id ?? null,
+                            'subcategoria_id' => $subcategoria?->id ?? null,
+                            'marca_id' => null,
+                            'unidad_compra_id' => null,
+                            'naturaleza_id' => null,
+                            'req_inventario_id' => null,
+                            'req_serie_id' => null,
+                            'req_lote_id' => null,
+                            'req_calibracion_id' => null,
+                            'serie' => null,
+                            'imagen' => null,
+                            'descripcion' => 'Producto creado desde maletín: ' . $record->nombre,
+                        ]);
+                        
+                        $record->productos()->attach($producto->id);
+                        
+                        Notification::make()
+                            ->title('✅ Producto creado con éxito')
+                            ->body("Producto '{$producto->nombre}' creado con stock 1, categoría Maleta, subcategoría Maletín y maletín asociado")
+                            ->success()
+                            ->send();
+                    }),
+                
+                // ✅ BOTÓN VER (SEGUNDO)
+                Tables\Actions\ViewAction::make()
+                    ->label('Ver')
+                    ->icon('heroicon-o-eye')
+                    ->color('info'),
+                
+                // ✅ BOTÓN EDITAR (TERCERO)
                 Tables\Actions\EditAction::make()
                     ->label('Editar')
                     ->icon('heroicon-o-pencil')
                     ->color('primary'),
                 
+                // ✅ BOTÓN ELIMINAR (CUARTO)
                 Tables\Actions\DeleteAction::make()
                     ->label('Eliminar')
                     ->icon('heroicon-o-trash')
@@ -426,6 +500,7 @@ class MaletinResource extends Resource
             'index' => Pages\ListMaletines::route('/'),
             'create' => Pages\CreateMaletin::route('/create'),
             'edit' => Pages\EditMaletin::route('/{record}/edit'),
+            'view' => Pages\ViewMaletin::route('/{record}'),
         ];
     }
 
@@ -460,4 +535,4 @@ class MaletinResource extends Resource
         
         return $max + 1;
     }
-}   
+}

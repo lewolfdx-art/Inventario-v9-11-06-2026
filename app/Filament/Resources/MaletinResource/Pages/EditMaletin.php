@@ -1,11 +1,11 @@
 <?php
-// app/Filament/Resources/MaletinResource/Pages/EditMaletin.php
 
 namespace App\Filament\Resources\MaletinResource\Pages;
 
 use App\Filament\Resources\MaletinResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Notifications\Notification;
 
 class EditMaletin extends EditRecord
 {
@@ -18,6 +18,30 @@ class EditMaletin extends EditRecord
                 ->label('Eliminar')
                 ->icon('heroicon-o-trash'),
         ];
+    }
+
+    /**
+     * Método mount - se ejecuta al cargar la página
+     * Verifica si hay una notificación pendiente en sesión
+     */
+    public function mount($record): void
+    {
+        parent::mount($record);
+        
+        // Verificar si hay una notificación en sesión (desde Producto)
+        if (session()->has('filament_notification')) {
+            $notification = session()->get('filament_notification');
+            
+            Notification::make()
+                ->title($notification['title'] ?? 'Información')
+                ->body($notification['body'] ?? '')
+                ->{$notification['status'] ?? 'info'}()
+                ->persistent()
+                ->send();
+            
+            // Limpiar la sesión después de mostrar la notificación
+            session()->forget('filament_notification');
+        }
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
@@ -71,5 +95,19 @@ class EditMaletin extends EditRecord
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
+    }
+
+    /**
+     * Sobrescribir el título de la página
+     */
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        
+        if ($record) {
+            return 'Editar Maletín: ' . $record->nombre;
+        }
+        
+        return parent::getTitle();
     }
 }

@@ -23,6 +23,7 @@ use Illuminate\Support\HtmlString;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Filament\Resources\MaletinResource;
 
 Log::info('=== ProductoResource cargado ===');
 
@@ -602,6 +603,35 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
                     ->toggleable(isToggledHiddenByDefault: false),
+                
+                // ✅ MALETÍN ASOCIADO (NUEVO - AGREGADO)
+                Tables\Columns\TextColumn::make('maletin_estado')
+                ->label('Maletín')
+                ->getStateUsing(function ($record) {
+                    $maletines = $record->maletines;
+                    if ($maletines->isNotEmpty()) {
+                        $nombres = $maletines->pluck('nombre')->implode(', ');
+                        return '📦 ' . $nombres;
+                    }
+                    return null;
+                })
+                ->badge()
+                ->color(fn ($state) => $state ? 'success' : null)
+                ->icon(fn ($state) => $state ? 'heroicon-o-check-circle' : null)
+                ->toggleable(isToggledHiddenByDefault: false)
+                ->placeholder('')
+                ->action(
+                    Tables\Actions\Action::make('irMaletin')
+                        ->label('')
+                        ->icon('heroicon-o-arrow-right')
+                        ->tooltip('Editar maletín asociado')
+                        ->url(fn ($record) => $record->maletines->isNotEmpty() 
+                            ? '/admin/maletins/' . $record->maletines->first()->id . '/edit'
+                            : null
+                        )
+                        ->openUrlInNewTab(false)
+                        ->color('primary')
+                ),
                 
                 // ✅ CATEGORÍA
                 Tables\Columns\TextColumn::make('categoria.nombre')

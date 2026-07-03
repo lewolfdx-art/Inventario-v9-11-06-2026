@@ -1,4 +1,5 @@
 <?php
+// app/Models/Producto.php
 
 namespace App\Models;
 
@@ -168,6 +169,18 @@ class Producto extends Model
     public function movimientos()
     {
         return $this->hasMany(Movimiento::class);
+    }
+
+    // ✅ RELACIÓN CON MALETINES (muchos a muchos)
+    public function maletines()
+    {
+        return $this->belongsToMany(Maletin::class, 'maletin_producto');
+    }
+
+    // ✅ Verificar si tiene maletines asociados
+    public function hasMaletines(): bool
+    {
+        return $this->maletines()->exists();
     }
 
     // ========== RECALIBRACIONES ==========
