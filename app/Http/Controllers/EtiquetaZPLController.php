@@ -186,56 +186,74 @@ ZPL;
     }
 
     /**
-     * ✅ NUEVO MÉTODO: Imprimir directamente en la impresora Zebra por USB
+     * ✅ Opción 1: Solo abre Direct Communication con el archivo cargado
+     * No descarga el archivo, solo lo abre en la utilidad
      */
-    public function imprimir(Producto $producto)
+    public function abrirDirectComm(Producto $producto)
     {
         if (empty($producto->sku)) {
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        // Generar el ZPL
         $zpl = $this->generarZPL($producto);
-
-        // Puerto USB (confirmado en tu sistema)
-        $portName = 'USB001';
+        $filename = "etiqueta_{$producto->sku}.zpl";
+        $tempFile = storage_path("app/temp/" . $filename);
+        
+        if (!is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+        
+        file_put_contents($tempFile, $zpl);
         
         try {
-            // Opción 1: Intentar escribir directamente en el puerto USB
-            $handle = @fopen("\\\\.\\$portName", 'w');
-            
-            if ($handle) {
-                fwrite($handle, $zpl);
-                fclose($handle);
-                return redirect()->back()->with('success', '✅ Etiqueta enviada a la impresora correctamente');
-            }
-            
-            // Opción 2: Si falla, usar PrnUtils.exe
-            $tempFile = storage_path("app/temp/etiqueta_{$producto->sku}.zpl");
-            
-            // Crear carpeta temporal si no existe
-            if (!is_dir(storage_path('app/temp'))) {
-                mkdir(storage_path('app/temp'), 0755, true);
-            }
-            
-            file_put_contents($tempFile, $zpl);
-            
+            // Abrir Direct Communication con el archivo cargado
             $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
-            $command = "$prnUtils /send /p USB001 /f \"$tempFile\"";
+            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
+            pclose(popen("start /B $command", 'r'));
             
-            exec($command, $output, $returnCode);
-            
-            // Eliminar archivo temporal
-            @unlink($tempFile);
-            
-            if ($returnCode !== 0) {
-                return redirect()->back()->with('error', '❌ Error al imprimir. Código: ' . $returnCode);
-            }
-            
-            return redirect()->back()->with('success', '✅ Etiqueta enviada a la impresora correctamente');
+            return redirect()->back()->with('success', '✅ Direct Communication abierto. Presiona Ctrl+Enter para imprimir.');
             
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', '❌ Error al imprimir: ' . $e->getMessage());
+            return redirect()->back()->with('error', '❌ Error al abrir Direct Communication: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ Opción 2: Descarga el ZPL y abre Direct Communication
+     * Descarga el archivo y lo abre en la utilidad
+     */
+    public function descargarYAbir(Producto $producto)
+    {
+        if (empty($producto->sku)) {
+            abort(404, 'Este producto no tiene SKU.');
+        }
+
+        $zpl = $this->generarZPL($producto);
+        $filename = "etiqueta_{$producto->sku}.zpl";
+        $tempFile = storage_path("app/temp/" . $filename);
+        
+        if (!is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+        
+        file_put_contents($tempFile, $zpl);
+        
+        try {
+            // Abrir Direct Communication con el archivo cargado
+            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
+            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
+            pclose(popen("start /B $command", 'r'));
+            
+            // Descargar el archivo
+            return response($zpl, 200)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            
+        } catch (\Exception $e) {
+            // Si falla, al menos descarga el archivo
+            return response($zpl, 200)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
         }
     }
 }

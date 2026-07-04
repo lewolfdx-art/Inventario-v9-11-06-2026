@@ -1365,19 +1365,91 @@ class ProductoResource extends Resource
                     ->openUrlInNewTab()
                     ->visible(fn (Producto $record): bool => filled($record->sku)),
 
-                // ✅ NUEVO BOTÓN - Imprimir en Zebra (USB)
+                // ✅ BOTÓN - Imprimir Zebra (con 3 opciones)
                 Tables\Actions\Action::make('imprimir_zebra')
-                    ->label('🖨️ Imprimir Zebra')
-                    ->icon('heroicon-o-printer')
-                    ->color('success')
-                    ->url(fn (Producto $record) => $record->sku ? route('etiqueta.imprimir', $record) : null)
-                    ->openUrlInNewTab(false)
-                    ->visible(fn (Producto $record): bool => filled($record->sku))
-                    ->requiresConfirmation()
-                    ->modalHeading('Imprimir etiqueta en Zebra')
-                    ->modalDescription('¿Estás seguro de imprimir la etiqueta de este producto en la impresora Zebra?')
-                    ->modalSubmitActionLabel('Si, imprimir')
-                    ->modalCancelActionLabel('Cancelar'),
+                ->label('🖨️ Imprimir Zebra')
+                ->icon('heroicon-o-printer')
+                ->color('success')
+                ->visible(fn (Producto $record): bool => filled($record->sku))
+                ->modalHeading('Imprimir etiqueta en Zebra')
+                ->modalDescription('Selecciona una opción:')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Cerrar')
+                ->modalWidth('md')
+                ->modalContent(function (Producto $record) {
+                    return new HtmlString('
+                        <style>
+                            .zebra-modal-buttons .btn-option {
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 0.75rem;
+                                width: 100%;
+                                padding: 0.75rem 1.5rem;
+                                border-radius: 0.5rem;
+                                font-weight: 600;
+                                font-size: 1rem;
+                                transition: all 0.2s ease;
+                                text-decoration: none;
+                                border: 2px solid transparent;
+                                cursor: pointer;
+                            }
+                            .zebra-modal-buttons .btn-option svg {
+                                width: 1.25rem;
+                                height: 1.25rem;
+                                flex-shrink: 0;
+                            }
+                            .zebra-modal-buttons .btn-option-blue {
+                                background-color: #3b82f6;
+                                color: #ffffff;
+                            }
+                            .zebra-modal-buttons .btn-option-blue:hover {
+                                background-color: #2563eb;
+                                transform: translateY(-1px);
+                                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+                            }
+                            .zebra-modal-buttons .btn-option-green {
+                                background-color: #22c55e;
+                                color: #ffffff;
+                            }
+                            .zebra-modal-buttons .btn-option-green:hover {
+                                background-color: #16a34a;
+                                transform: translateY(-1px);
+                                box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+                            }
+                            .zebra-modal-buttons .btn-option:active {
+                                transform: scale(0.98);
+                            }
+                            .zebra-modal-buttons .btn-option i {
+                                font-style: normal;
+                            }
+                        </style>
+                        <div class="zebra-modal-buttons flex flex-col gap-4 p-4">
+                            <div class="text-center text-gray-600 dark:text-gray-400 mb-2">
+                                ¿Qué deseas hacer con la etiqueta de <strong>' . e($record->nombre) . '</strong>?
+                            </div>
+                            <div class="flex flex-col gap-3">
+                                <!-- Opción 1: Abrir Direct Communication -->
+                                <a href="' . route('etiqueta.abrir', $record) . '" 
+                                   class="btn-option btn-option-blue">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5z"/>
+                                    </svg>
+                                    📥 Abrir Direct Communication
+                                </a>
+                                
+                                <!-- Opción 2: Descargar ZPL y abrir Direct Comm -->
+                                <a href="' . route('etiqueta.descargar', $record) . '" 
+                                   class="btn-option btn-option-green">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    🖨️ Descargar ZPL y abrir Direct Comm
+                                </a>
+                            </div>
+                        </div>
+                    ');
+                }),
             ])
             
             ->bulkActions([

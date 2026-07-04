@@ -52,9 +52,13 @@ Route::get('/guia-remision/imprimir/{guia}', function (GuiaRemision $guia) {
 Route::get('/etiqueta-zpl/producto/{producto}', [EtiquetaZPLController::class, 'generate'])
     ->name('etiqueta-zpl.producto');
 
-// ✅ NUEVA RUTA: Imprimir directamente en Zebra por USB
-Route::get('/etiqueta/imprimir/{producto}', [EtiquetaZPLController::class, 'imprimir'])
-    ->name('etiqueta.imprimir');
+// ✅ Opción 1: Abrir Direct Communication (sin descargar)
+Route::get('/etiqueta/abrir/{producto}', [EtiquetaZPLController::class, 'abrirDirectComm'])
+    ->name('etiqueta.abrir');
+
+// ✅ Opción 2: Descargar ZPL y abrir Direct Communication
+Route::get('/etiqueta/descargar/{producto}', [EtiquetaZPLController::class, 'descargarYAbir'])
+    ->name('etiqueta.descargar');
 
 // ============================================================
 // ESCÁNER CON LIVEWIRE
