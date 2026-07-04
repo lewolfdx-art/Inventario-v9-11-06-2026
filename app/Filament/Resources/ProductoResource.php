@@ -1364,6 +1364,20 @@ class ProductoResource extends Resource
                     ->url(fn (Producto $record) => $record->sku ? route('etiqueta-zpl.producto', $record) : null)
                     ->openUrlInNewTab()
                     ->visible(fn (Producto $record): bool => filled($record->sku)),
+
+                // ✅ NUEVO BOTÓN - Imprimir en Zebra (USB)
+                Tables\Actions\Action::make('imprimir_zebra')
+                    ->label('🖨️ Imprimir Zebra')
+                    ->icon('heroicon-o-printer')
+                    ->color('success')
+                    ->url(fn (Producto $record) => $record->sku ? route('etiqueta.imprimir', $record) : null)
+                    ->openUrlInNewTab(false)
+                    ->visible(fn (Producto $record): bool => filled($record->sku))
+                    ->requiresConfirmation()
+                    ->modalHeading('Imprimir etiqueta en Zebra')
+                    ->modalDescription('¿Estás seguro de imprimir la etiqueta de este producto en la impresora Zebra?')
+                    ->modalSubmitActionLabel('Si, imprimir')
+                    ->modalCancelActionLabel('Cancelar'),
             ])
             
             ->bulkActions([

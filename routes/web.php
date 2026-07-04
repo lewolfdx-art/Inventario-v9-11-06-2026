@@ -47,10 +47,14 @@ Route::get('/guia-remision/imprimir/{guia}', function (GuiaRemision $guia) {
 })->name('guia-remision.imprimir');
 
 // ============================================================
-// ZPL - IMPRESORA ZEBRA
+// ZPL - IMPRESORA ZEBRA (Descargar archivo .zpl)
 // ============================================================
 Route::get('/etiqueta-zpl/producto/{producto}', [EtiquetaZPLController::class, 'generate'])
     ->name('etiqueta-zpl.producto');
+
+// ✅ NUEVA RUTA: Imprimir directamente en Zebra por USB
+Route::get('/etiqueta/imprimir/{producto}', [EtiquetaZPLController::class, 'imprimir'])
+    ->name('etiqueta.imprimir');
 
 // ============================================================
 // ESCÁNER CON LIVEWIRE

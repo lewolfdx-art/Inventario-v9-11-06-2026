@@ -23,10 +23,7 @@ class EtiquetaZPLController extends Controller
 
     public function generarZPL(Producto $producto)
     {
-        // ✅ SKU ORIGINAL (sin modificar) para mostrar como texto
         $skuOriginal = $producto->sku ?? 'Sin SKU';
-        
-        // ✅ SKU CON 0 ADELANTE para el código de barras
         $skuBarcode = '0' . $skuOriginal;
         
         $nombre = $this->limpiarTexto($producto->nombre ?? 'Sin nombre');
@@ -43,33 +40,28 @@ class EtiquetaZPLController extends Controller
         return <<<ZPL
 ^XA
 ^PW812
-^LL203
+^LL406
 ^LS0
 ^LH0,0
 ^BY2,3,45
 
-// ============================================
-// COLUMNA IZQUIERDA
-// ============================================
-^FO5,26^ADN,14,9^FDProducto: LLAVES MIXTAS DE  7/8^FS
-^FO5,48^ADN,12,8^FDMarca: STANLEY^FS
-^FO5,66^ADN,12,8^FDModelo: 86-841^FS
-^FO5,88^BCN,45,Y,N,N^FD>0HER-155^FS
-^FO5,175^ADN,11,7^FDSerie: ^FS
-^FO5,195^ADN,9,6^FD28/06/2026^FS
+^FX COLUMNA IZQUIERDA
+^FO5,26^ADN,14,9^FDProducto: {$nombre}^FS
+^FO5,48^ADN,12,8^FDMarca: {$marca}^FS
+^FO5,66^ADN,12,8^FDModelo: {$modelo}^FS
+^FO5,88^BCN,45,Y,N,N^FD>{$skuBarcode}^FS
+^FO5,175^ADN,11,7^FDSerie: {$serie}^FS
+^FO5,195^ADN,9,6^FD{$fecha}^FS
 
-// ============================================
-// COLUMNA DERECHA
-// ============================================
+^FX COLUMNA DERECHA
 ^LH425,0
-^FO5,26^ADN,14,9^FDProducto: LLAVES MIXTAS DE  7/8^FS
-^FO5,48^ADN,12,8^FDMarca: STANLEY^FS
-^FO5,66^ADN,12,8^FDModelo: 86-841^FS
-^FO5,88^BCN,45,Y,N,N^FD>0HER-155^FS
-^FO5,175^ADN,11,7^FDSerie: ^FS
-^FO5,195^ADN,9,6^FD28/06/2026^FS
+^FO5,26^ADN,14,9^FDProducto: {$nombre}^FS
+^FO5,48^ADN,12,8^FDMarca: {$marca}^FS
+^FO5,66^ADN,12,8^FDModelo: {$modelo}^FS
+^FO5,88^BCN,45,Y,N,N^FD>{$skuBarcode}^FS
+^FO5,175^ADN,11,7^FDSerie: {$serie}^FS
+^FO5,195^ADN,9,6^FD{$fecha}^FS
 
-^LH0,0
 ^XZ
 ZPL;
     }
@@ -89,14 +81,10 @@ ZPL;
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        // ✅ SKU ORIGINAL para mostrar como texto
         $skuOriginal = $producto->sku;
-        
-        // ✅ SKU CON 0 ADELANTE para el código de barras (SIN EL >)
         $skuBarcode = '0' . $skuOriginal;
 
         $generator = new BarcodeGeneratorPNG();
-        // ✅ Generar código de barras SIN el prefijo > (la librería lo maneja sola)
         $barcode = $generator->getBarcode($skuBarcode, $generator::TYPE_CODE_128);
 
         $width = 812;
@@ -188,16 +176,66 @@ ZPL;
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        // ✅ SKU ORIGINAL para mostrar como texto
         $skuOriginal = $producto->sku;
-        
-        // ✅ SKU CON 0 ADELANTE para el código de barras (SIN EL >)
         $skuBarcode = '0' . $skuOriginal;
         
         $generator = new BarcodeGeneratorPNG();
-        // ✅ Generar código de barras SIN el prefijo > (la librería lo maneja sola)
         $barcode = $generator->getBarcode($skuBarcode, $generator::TYPE_CODE_128);
 
         return view('etiquetas.zpl', compact('producto', 'barcode', 'skuOriginal'));
+    }
+
+    /**
+     * ✅ NUEVO MÉTODO: Imprimir directamente en la impresora Zebra por USB
+     */
+    public function imprimir(Producto $producto)
+    {
+        if (empty($producto->sku)) {
+            abort(404, 'Este producto no tiene SKU.');
+        }
+
+        // Generar el ZPL
+        $zpl = $this->generarZPL($producto);
+
+        // Puerto USB (confirmado en tu sistema)
+        $portName = 'USB001';
+        
+        try {
+            // Opción 1: Intentar escribir directamente en el puerto USB
+            $handle = @fopen("\\\\.\\$portName", 'w');
+            
+            if ($handle) {
+                fwrite($handle, $zpl);
+                fclose($handle);
+                return redirect()->back()->with('success', '✅ Etiqueta enviada a la impresora correctamente');
+            }
+            
+            // Opción 2: Si falla, usar PrnUtils.exe
+            $tempFile = storage_path("app/temp/etiqueta_{$producto->sku}.zpl");
+            
+            // Crear carpeta temporal si no existe
+            if (!is_dir(storage_path('app/temp'))) {
+                mkdir(storage_path('app/temp'), 0755, true);
+            }
+            
+            file_put_contents($tempFile, $zpl);
+            
+            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
+            $command = "$prnUtils /send /p USB001 /f \"$tempFile\"";
+            
+            exec($command, $output, $returnCode);
+            
+            // Eliminar archivo temporal
+            @unlink($tempFile);
+            
+            if ($returnCode !== 0) {
+                return redirect()->back()->with('error', '❌ Error al imprimir. Código: ' . $returnCode);
+            }
+            
+            return redirect()->back()->with('success', '✅ Etiqueta enviada a la impresora correctamente');
+            
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', '❌ Error al imprimir: ' . $e->getMessage());
+        }
     }
 }
