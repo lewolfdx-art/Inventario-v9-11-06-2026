@@ -492,7 +492,7 @@
                 <div class="producto-detalle"><span>Categoría:</span> <span id="productoCategoria">-</span></div>
                 <div class="producto-detalle"><span>Estado:</span> <span id="productoEstado">-</span></div>
             </div>
-            <div class="stock verde" id="productoStock">📦 Stock: 0</div>
+            <div class="stock verde" id="productoStock"> Stock: 0</div>
         </div>
 
         <div class="footer">
@@ -557,7 +557,7 @@
 
             const stock = producto.stock || 0;
             const stockEl = document.getElementById('productoStock');
-            stockEl.textContent = '📦 Stock: ' + stock;
+            stockEl.textContent = ' Stock: ' + stock;
 
             if (stock <= 0) {
                 stockEl.className = 'stock rojo';

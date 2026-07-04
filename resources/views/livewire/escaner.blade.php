@@ -103,7 +103,7 @@
         <!-- Último producto escaneado -->
         @if($ultimo_producto)
             <div class="mt-6 bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                <p class="font-semibold text-blue-800">📦 Último producto:</p>
+                <p class="font-semibold text-blue-800"> Último producto:</p>
                 <div class="grid grid-cols-2 gap-2 mt-2">
                     <div>
                         <span class="text-sm text-gray-600">Nombre:</span>

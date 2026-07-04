@@ -18,7 +18,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Log; // ✅ IMPORTANTE: Agregar esta línea
+use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 
 class AdminPanelProvider extends PanelProvider
@@ -33,8 +33,10 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Sistema de Inventario')
             ->brandLogo(asset('images/login-logo.png'))
             ->brandLogoHeight('3rem')
+            
+            // ✅ SOLO CAMBIÉ EL COLOR A AMARILLO
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Yellow,
             ])
             
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
@@ -42,10 +44,14 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
             ])
+            
+            // ✅ DESCUBRIMIENTO AUTOMÁTICO (esto ya funciona)
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            
+            // ✅ SOLO ELIMINÉ AccountWidget Y FilamentInfoWidget
             ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                // Widgets\AccountWidget::class,    ← ELIMINADO
+                // Widgets\FilamentInfoWidget::class, ← ELIMINADO
             ])
             
             ->middleware([
@@ -64,15 +70,12 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             
-            // ✅ Hook para ejecutar notificaciones
             ->bootUsing(function () {
-                // Solo ejecutar en rutas admin y si no se ha ejecutado en esta sesión
                 if (request()->is('admin*') && !Session::has('alertas_ejecutadas')) {
                     try {
                         NotificationService::runAllChecks();
                         Session::put('alertas_ejecutadas', true);
                     } catch (\Exception $e) {
-                        // Log ahora funciona porque importamos Log
                         Log::error('Error en notificaciones: ' . $e->getMessage());
                     }
                 }
