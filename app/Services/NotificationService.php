@@ -48,7 +48,7 @@ class NotificationService
             ->body($body)
             ->icon('heroicon-o-exclamation-triangle')
             ->iconColor('danger')
-            ->duration(1000) // ✅ 5 segundos (5000 milisegundos)
+            ->duration(3000) // ✅ 5 segundos (5000 milisegundos)
             ->actions([
                 Action::make('ver')
                     ->label('Ver todos los productos')

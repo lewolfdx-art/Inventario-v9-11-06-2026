@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Facades\Log;
 
 class MaletinResource extends Resource
 {
@@ -236,6 +237,80 @@ class MaletinResource extends Resource
             ->paginated(true)
             ->selectable(true)
             ->searchable()
+            
+            ->headerActions([
+                // Botón de importación desde Excel
+                Tables\Actions\Action::make('importar_excel')
+                    ->label('Importar desde Excel')
+                    ->icon('heroicon-o-cloud-arrow-up')
+                    ->color('success')
+                    ->modalHeading('Importar Maletín desde Excel')
+                    ->modalDescription('Selecciona el archivo Excel con el formato de checklist de entrega')
+                    ->form([
+                        Forms\Components\FileUpload::make('archivo')
+                            ->label('Archivo Excel')
+                            ->required()
+                            ->acceptedFileTypes([
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                'application/vnd.ms-excel'
+                            ])
+                            ->maxSize(10240)
+                            ->columnSpanFull()
+                            ->helperText('Solo archivos .xlsx o .xls')
+                            ->storeFiles(false),
+                    ])
+                    ->action(function (array $data) {
+                        try {
+                            $archivo = $data['archivo'];
+                            
+                            if (is_array($archivo)) {
+                                $archivo = $archivo[0] ?? null;
+                            }
+                            
+                            if (!$archivo instanceof \Illuminate\Http\UploadedFile) {
+                                throw new \Exception('El archivo no es válido.');
+                            }
+                            
+                            if (!$archivo->isValid()) {
+                                throw new \Exception('El archivo no es válido o está corrupto.');
+                            }
+                            
+                            $tempPath = $archivo->getRealPath();
+                            
+                            if (!file_exists($tempPath)) {
+                                throw new \Exception('El archivo temporal no existe: ' . $tempPath);
+                            }
+                            
+                            // 👇 CREAR IMPORTADOR CON cleanExisting = true
+                            $import = new \App\Imports\MaletinImport(
+                                $data['categoria_id'] ?? null,
+                                $data['subcategoria_id'] ?? null,
+                                true // 👈 Esto limpia los datos existentes
+                            );
+                            
+                            $import->import($tempPath);
+                            
+                            Notification::make()
+                                ->title('✅ Importación exitosa')
+                                ->body('El maletín ha sido importado correctamente')
+                                ->success()
+                                ->send();
+                            
+                            return redirect()->back();
+                            
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('❌ Error al importar')
+                                ->body('Ocurrió un error: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                            
+                            Log::error('Error al importar Excel: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+                        }
+                    })
+                    ->modalSubmitActionLabel('Importar')
+                    ->modalCancelActionLabel('Cancelar'),
+            ])
             
             ->columns([
                 Tables\Columns\TextColumn::make('id')
