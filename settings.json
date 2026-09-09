@@ -1,0 +1,34 @@
+{
+    "application": {
+        "single_instance_guid": "",
+        "dpi_aware": true
+    },
+    "debugging": {
+        "show_console": true,
+        "log_level": "DEBUG4"
+    },
+    "main_window": {
+        "title": "Inventario v9",
+        "default_size": [1200, 800],
+        "start_maximized": true,
+        "center_on_screen": true
+    },
+    "web_server": {
+        "listen_on": ["127.0.0.1", 8000],
+        "www_directory": "www/Inventario-v9/public",
+        "index_document": "index.php",
+        "cgi_bin_directory": "../../php",
+        "cgi_bin_file_extensions": ["php"],
+        "404_handler": "/index.php",
+        "rewrite_rules": [
+            {
+                "url_pattern": "^/(.*)$",
+                "rewrite_to": "/index.php/$1"
+            }
+        ]
+    },
+    "chrome": {
+        "log_file": "debug.log",
+        "devtools_F12": true
+    }
+}

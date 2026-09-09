@@ -39,7 +39,8 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
             'modelo'                    => ['header' => 'Modelo',                    'value' => fn($p) => $p->modelo ?? ''],
             'nombre'                    => ['header' => 'Nombre',                    'value' => fn($p) => $p->nombre ?? ''],
             'serie'                     => ['header' => 'Serie',                     'value' => fn($p) => $p->serie ?? ''],
-            'stock'                     => ['header' => 'Stock',                     'value' => fn($p) => $p->stock ?? 0], // ✅ AGREGADO
+            'año_fabricacion'           => ['header' => 'Año Fabricación',           'value' => fn($p) => $p->año_fabricacion ?? ''],
+            'stock'                     => ['header' => 'Stock',                     'value' => fn($p) => $p->stock ?? 0],
             'categoria'                 => ['header' => 'Categoría',                 'value' => fn($p) => $p->categoria->nombre ?? ''],
             'subcategoria'              => ['header' => 'Subcategoría',              'value' => fn($p) => $p->subcategoria->nombre ?? ''],
             'marca'                     => ['header' => 'Marca',                     'value' => fn($p) => $p->marca->nombre ?? ''],

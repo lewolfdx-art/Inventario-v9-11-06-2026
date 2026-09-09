@@ -31,7 +31,8 @@ class ProductosPdfExport
             'sku' => 'SKU',
             'modelo' => 'Modelo',
             'nombre' => 'Nombre',
-            'serie' => 'Serie',  // ✅ NUEVO
+            'serie' => 'Serie',
+            'año_fabricacion' => 'Año Fabricación',  // 👈 NUEVO
             'categoria' => 'Categoría',
             'subcategoria' => 'Subcategoría',
             'marca' => 'Marca',
@@ -80,7 +81,8 @@ class ProductosPdfExport
                     'req_serie' => $producto->reqSerie->nombre ?? '',
                     'req_lote' => $producto->reqLote->nombre ?? '',
                     'req_calibracion' => $producto->reqCalibracion->nombre ?? '',
-                    'serie' => $producto->serie ?? '',  // ✅ NUEVO
+                    'serie' => $producto->serie ?? '',
+                    'año_fabricacion' => $producto->año_fabricacion ?? '',  // 👈 NUEVO
                     default => $producto->$key ?? '',
                 };
                 $row[] = $this->cleanString($value);

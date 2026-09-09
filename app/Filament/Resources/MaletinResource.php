@@ -19,7 +19,7 @@ class MaletinResource extends Resource
 {
     protected static ?string $model = Maletin::class;
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
-    protected static ?string $navigationGroup = 'Gestion de Equipos';
+    protected static ?string $navigationGroup = 'Gestion de Maletines';
     protected static ?string $pluralLabel = 'Maletines';
     protected static ?string $label = 'Maletin';
     protected static ?int $navigationSort = 2;
@@ -118,8 +118,8 @@ class MaletinResource extends Resource
                             }),
                     ]),
                 
-                // ==================== SECCION 3: CONTENIDO DE LA MALETA ====================
-                Forms\Components\Section::make('CONTENIDO DE LA MALETA')
+                // ==================== SECCION 3: ACCESORIOS EN LA MALETA ====================
+                Forms\Components\Section::make('ACCESORIOS EN LA MALETA')
                     ->description('Lista de accesorios que componen el maletin')
                     ->schema([
                         Forms\Components\Repeater::make('accesoriosSet')
@@ -345,37 +345,36 @@ class MaletinResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
+                // ✅ COLUMNA: TOTAL EQUIPO (Suma de todos los items)
+                Tables\Columns\TextColumn::make('total_equipo')
+                    ->label('Total Equipo')
+                    ->getStateUsing(function ($record) {
+                        $componentes = $record->componentesEquipo->where('incluido', true)->count();
+                        $accesorios = $record->accesoriosSet->where('incluido', true)->count();
+                        $adicionales = $record->accesoriosAdicionales->where('incluido', true)->count();
+                        $total = $componentes + $accesorios + $adicionales;
+                        return $total . ' elementos en total';
+                    })
+                    ->badge()
+                    ->color('success')
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->tooltip('Suma total de componentes + accesorios + adicionales'),
+                
                 Tables\Columns\TextColumn::make('componentes_contador')
                     ->label('Componentes')
                     ->getStateUsing(function ($record) {
                         $count = $record->componentesEquipo->where('incluido', true)->count();
-                        return $count . ' elemento(s)';
+                        return $count . ' componente(s)';
                     })
                     ->badge()
                     ->color('primary')
-                    ->toggleable(isToggledHiddenByDefault: false),
-                
-                Tables\Columns\TextColumn::make('componentes_resumen')
-                    ->label('Resumen Componentes')
-                    ->getStateUsing(function ($record) {
-                        $items = $record->componentesEquipo
-                            ->where('incluido', true)
-                            ->take(3)
-                            ->map(function ($item) {
-                                return $item->descripcion;
-                            })->implode(' | ');
-                        $total = $record->componentesEquipo->where('incluido', true)->count();
-                        return $total > 3 ? $items . ' ...' : ($items ?: 'Sin componentes');
-                    })
-                    ->limit(80)
-                    ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
                 Tables\Columns\TextColumn::make('accesorios_contador')
                     ->label('Accesorios')
                     ->getStateUsing(function ($record) {
                         $count = $record->accesoriosSet->where('incluido', true)->count();
-                        return $count . ' elemento(s)';
+                        return $count . ' accesorio(s)';
                     })
                     ->badge()
                     ->color('info')
@@ -397,11 +396,27 @@ class MaletinResource extends Resource
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
                 
+                Tables\Columns\TextColumn::make('componentes_resumen')
+                    ->label('Resumen Componentes')
+                    ->getStateUsing(function ($record) {
+                        $items = $record->componentesEquipo
+                            ->where('incluido', true)
+                            ->take(3)
+                            ->map(function ($item) {
+                                return $item->descripcion;
+                            })->implode(' | ');
+                        $total = $record->componentesEquipo->where('incluido', true)->count();
+                        return $total > 3 ? $items . ' ...' : ($items ?: 'Sin componentes');
+                    })
+                    ->limit(80)
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: false),
+                
                 Tables\Columns\TextColumn::make('adicionales_contador')
                     ->label('Adicionales')
                     ->getStateUsing(function ($record) {
                         $count = $record->accesoriosAdicionales->where('incluido', true)->count();
-                        return $count . ' elemento(s)';
+                        return $count . ' adicional(es)';
                     })
                     ->badge()
                     ->color('warning')

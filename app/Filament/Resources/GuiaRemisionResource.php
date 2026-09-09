@@ -20,8 +20,8 @@ class GuiaRemisionResource extends Resource
 {
     protected static ?string $model = GuiaRemision::class;
     protected static ?string $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $navigationGroup = 'Remisión';
-    protected static ?string $pluralLabel = 'Guías de Remisión';
+    protected static ?string $navigationGroup = 'Guías';
+    protected static ?string $pluralLabel = 'Guías de Remisión/Sunat';
     protected static ?string $label = 'Guía de Remisión';
     protected static ?int $navigationSort = 1;
 

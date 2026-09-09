@@ -16,6 +16,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $modelo
  * @property string $nombre
  * @property string|null $serie
+ * @property int|null $año_fabricacion  // 👈 NUEVO
  * @property int $stock
  * @property string|null $imagen
  * @property int $unidad_compra_id
@@ -41,6 +42,7 @@ class Producto extends Model
         'modelo',
         'nombre',
         'serie',
+        'año_fabricacion',  // 👈 NUEVO
         'stock',
         'imagen',
         'unidad_compra_id',
@@ -63,6 +65,7 @@ class Producto extends Model
         'modelo',
         'nombre',
         'serie',
+        'año_fabricacion',  // 👈 NUEVO
         'stock',
         'imagen',
         'categoria_id',
@@ -107,6 +110,23 @@ class Producto extends Model
     public function getHasImagenAttribute()
     {
         return !empty($this->imagen) && Storage::disk('public')->exists($this->imagen);
+    }
+
+    // ========== ACCESORS PARA AÑO DE FABRICACIÓN ==========  // 👈 NUEVO BLOQUE
+    
+    public function getAñoFabricacionFormattedAttribute()
+    {
+        return $this->año_fabricacion ? (string) $this->año_fabricacion : 'No especificado';
+    }
+
+    public static function getAñosFabricacionDisponibles()
+    {
+        return self::whereNotNull('año_fabricacion')
+            ->select('año_fabricacion')
+            ->distinct()
+            ->orderBy('año_fabricacion', 'desc')
+            ->pluck('año_fabricacion')
+            ->toArray();
     }
 
     // ========== RELACIONES ==========
@@ -181,6 +201,43 @@ class Producto extends Model
     public function hasMaletines(): bool
     {
         return $this->maletines()->exists();
+    }
+
+    // ========== SCOPES PARA FILTROS ==========  // 👈 NUEVO BLOQUE
+    
+    /**
+     * Scope para filtrar por maletín
+     */
+    public function scopeEnMaletin($query, $maletinId)
+    {
+        if ($maletinId) {
+            return $query->whereHas('maletines', function ($q) use ($maletinId) {
+                $q->where('maletines.id', $maletinId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Scope para filtrar por año de fabricación
+     */
+    public function scopeAñoFabricacion($query, $año)
+    {
+        if ($año) {
+            return $query->where('año_fabricacion', $año);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope para filtrar por rango de años
+     */
+    public function scopeRangoAños($query, $desde, $hasta)
+    {
+        if ($desde && $hasta) {
+            return $query->whereBetween('año_fabricacion', [$desde, $hasta]);
+        }
+        return $query;
     }
 
     // ========== RECALIBRACIONES ==========

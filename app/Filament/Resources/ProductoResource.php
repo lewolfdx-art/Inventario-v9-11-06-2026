@@ -49,26 +49,35 @@ class ProductoResource extends Resource
                             ->label('SKU')
                             ->placeholder('Ej: SKU001')
                             ->helperText('Código único del producto'),
-                        
+
                         Forms\Components\TextInput::make('modelo')
                             ->required()
                             ->maxLength(100)
                             ->label('Modelo')
                             ->placeholder('Ej: XT-100'),
-                        
+
                         Forms\Components\TextInput::make('nombre')
                             ->required()
                             ->maxLength(200)
                             ->label('Nombre')
                             ->placeholder('Ej: Producto'),
-                        
+
+                        Forms\Components\TextInput::make('año_fabricacion')
+                            ->label('Año de Fabricación')
+                            ->numeric()
+                            ->minValue(1900)
+                            ->maxValue(date('Y'))
+                            ->placeholder('Ej: 2024')
+                            ->helperText('Ingrese solo el año (ejemplo: 2024)')
+                            ->step(1),
+
                         Forms\Components\TextInput::make('stock')
                             ->label('Stock Actual')
                             ->numeric()
                             ->default(0)
                             ->helperText('Cantidad disponible en inventario'),
                     ])->columns(2),
-                
+
                 // ✅ SECCIÓN DE IMAGEN
                 Forms\Components\Section::make('Imagen del Producto')
                     ->schema([
@@ -88,7 +97,7 @@ class ProductoResource extends Resource
                     ])
                     ->collapsible()
                     ->collapsed(fn($record) => !$record?->imagen),
-                
+
                 Forms\Components\Section::make('Catálogos (Seleccionar)')
                     ->schema([
                         Forms\Components\Select::make('categoria_id')
@@ -97,35 +106,35 @@ class ProductoResource extends Resource
                             ->searchable()
                             ->preload()
                             ->label('Categoría'),
-                        
+
                         Forms\Components\Select::make('subcategoria_id')
                             ->relationship('subcategoria', 'nombre')
                             ->required()
                             ->searchable()
                             ->preload()
                             ->label('Subcategoría'),
-                        
+
                         Forms\Components\Select::make('marca_id')
                             ->relationship('marca', 'nombre')
                             ->required()
                             ->searchable()
                             ->preload()
                             ->label('Marca'),
-                        
+
                         Forms\Components\Select::make('unidad_compra_id')
                             ->relationship('unidadCompra', 'nombre')
                             ->required()
                             ->searchable()
                             ->preload()
                             ->label('Unidad de Compra'),
-                        
+
                         Forms\Components\Select::make('naturaleza_id')
                             ->relationship('naturaleza', 'nombre')
                             ->required()
                             ->searchable()
                             ->preload()
                             ->label('Naturaleza'),
-                        
+
                         Forms\Components\Select::make('estado_id')
                             ->relationship('estado', 'nombre')
                             ->required()
@@ -133,7 +142,7 @@ class ProductoResource extends Resource
                             ->preload()
                             ->label('Estado'),
                     ])->columns(2),
-                
+
                 Forms\Components\Section::make('Requerimientos')
                     ->schema([
                         Forms\Components\Select::make('req_inventario_id')
@@ -142,7 +151,7 @@ class ProductoResource extends Resource
                             ->searchable()
                             ->preload()
                             ->label('¿Requiere Inventario?'),
-                        
+
                         Forms\Components\Select::make('req_serie_id')
                             ->relationship('reqSerie', 'nombre')
                             ->required()
@@ -150,14 +159,14 @@ class ProductoResource extends Resource
                             ->preload()
                             ->reactive()
                             ->label('¿Requiere Serie?'),
-                        
+
                         Forms\Components\Select::make('req_lote_id')
                             ->relationship('reqLote', 'nombre')
                             ->required()
                             ->searchable()
                             ->preload()
                             ->label('¿Requiere Lote?'),
-                        
+
                         Forms\Components\Select::make('req_calibracion_id')
                             ->relationship('reqCalibracion', 'nombre')
                             ->required()
@@ -165,7 +174,7 @@ class ProductoResource extends Resource
                             ->preload()
                             ->label('¿Requiere Calibración?'),
                     ])->columns(2),
-                
+
                 Forms\Components\TextInput::make('serie')
                     ->label('Número de Serie')
                     ->maxLength(100)
@@ -173,7 +182,7 @@ class ProductoResource extends Resource
                     ->helperText('Ingrese el número de serie del producto')
                     ->visible(fn($get) => $get('req_serie_id') == 2)
                     ->required(fn($get) => $get('req_serie_id') == 2),
-                
+
                 Forms\Components\Section::make('Información Adicional')
                     ->schema([
                         Forms\Components\Textarea::make('descripcion')
@@ -249,20 +258,20 @@ class ProductoResource extends Resource
                                 if (!$record) {
                                     return 'No hay historial disponible para un producto nuevo.';
                                 }
-                                
+
                                 $logs = $record->activities()->latest()->get();
-                                
+
                                 if ($logs->isEmpty()) {
                                     return 'No hay cambios registrados para este producto.';
                                 }
-                                
+
                                 $html = '<div class="space-y-4 max-h-[400px] overflow-y-auto p-2">';
                                 foreach ($logs as $log) {
                                     $user = $log->causer ? $log->causer->name : 'Sistema';
                                     $date = $log->created_at->format('d/m/Y H:i:s');
                                     $event = $log->event ?? 'cambio';
                                     $description = $log->description ?? 'Sin descripción';
-                                    
+
                                     $badgeColor = match($event) {
                                         'creado' => 'success',
                                         'actualizado' => 'info',
@@ -270,7 +279,7 @@ class ProductoResource extends Resource
                                         'restaurado' => 'warning',
                                         default => 'secondary',
                                     };
-                                    
+
                                     $changesHtml = '';
                                     if ($log->properties && isset($log->properties['changes_formatted'])) {
                                         $changes = $log->properties['changes_formatted'];
@@ -282,7 +291,7 @@ class ProductoResource extends Resource
                                             $changesHtml .= '</ul>';
                                         }
                                     }
-                                    
+
                                     $html .= <<<HTML
                                         <div class="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-white">
                                             <div class="flex justify-between items-start">
@@ -302,7 +311,7 @@ class ProductoResource extends Resource
                                     HTML;
                                 }
                                 $html .= '</div>';
-                                
+
                                 return new HtmlString($html);
                             }),
                     ])
@@ -319,7 +328,7 @@ class ProductoResource extends Resource
             ->paginated(true)
             ->selectable(true)
             ->searchable(true)
-            
+
             // CABECERA
             ->headerActions([
                 Action::make('escanear')
@@ -346,7 +355,7 @@ class ProductoResource extends Resource
                     ->action(function () {
                         // No hacer nada aquí
                     }),
-                
+
                 Action::make('importar')
                     ->label('Importar desde Excel')
                     ->icon('heroicon-o-document-arrow-up')
@@ -392,7 +401,7 @@ class ProductoResource extends Resource
                                 ->send();
                         }
                     }),
-                
+
                 Action::make('exportar_todo_excel')
                     ->label('Exportar todo a Excel')
                     ->icon('heroicon-o-document-arrow-down')
@@ -405,6 +414,7 @@ class ProductoResource extends Resource
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
                                 'serie' => 'Serie',
+                                'año_fabricacion' => 'Año Fabricación',
                                 'stock' => 'Stock',
                                 'categoria' => 'Categoría',
                                 'subcategoria' => 'Subcategoría',
@@ -428,7 +438,7 @@ class ProductoResource extends Resource
                         $export = new ProductosExport($records, $columnasSeleccionadas);
                         return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
                     }),
-                
+
                 Action::make('exportar_todo_pdf')
                     ->label('Exportar todo a PDF')
                     ->icon('heroicon-o-document')
@@ -441,6 +451,7 @@ class ProductoResource extends Resource
                                 'modelo' => 'Modelo',
                                 'nombre' => 'Nombre',
                                 'serie' => 'Serie',
+                                'año_fabricacion' => 'Año Fabricación',
                                 'stock' => 'Stock',
                                 'categoria' => 'Categoría',
                                 'marca' => 'Marca',
@@ -462,7 +473,7 @@ class ProductoResource extends Resource
                             'Content-Type' => 'application/pdf',
                         ]);
                     }),
-                
+
                 // ✅ BOTÓN DE HISTORIAL GLOBAL
                 Action::make('historial_global')
                     ->label('📋 Historial Global')
@@ -475,17 +486,17 @@ class ProductoResource extends Resource
                             ->latest()
                             ->limit(100)
                             ->get();
-                        
+
                         if ($logs->isEmpty()) {
                             return new HtmlString('<div class="text-center text-gray-500 p-8">No hay registros de actividad.</div>');
                         }
-                        
+
                         $html = '<div class="space-y-3 max-h-[70vh] overflow-y-auto p-2">';
                         foreach ($logs as $log) {
                             $user = $log->causer ? $log->causer->name : 'Sistema';
                             $date = $log->created_at->format('d/m/Y H:i:s');
                             $event = $log->event ?? 'cambio';
-                            
+
                             $badgeColor = match($event) {
                                 'creado' => 'success',
                                 'actualizado' => 'info',
@@ -493,10 +504,10 @@ class ProductoResource extends Resource
                                 'restaurado' => 'warning',
                                 default => 'secondary',
                             };
-                            
+
                             $subject = $log->subject;
                             $subjectInfo = $subject ? "{$subject->sku} - {$subject->nombre}" : 'N/A';
-                            
+
                             $html .= <<<HTML
                                 <div class="border-b border-gray-200 pb-3 last:border-0 hover:bg-gray-50 p-2 rounded">
                                     <div class="flex justify-between items-start">
@@ -518,14 +529,14 @@ class ProductoResource extends Resource
                             HTML;
                         }
                         $html .= '</div>';
-                        
+
                         return new HtmlString($html);
                     })
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Cerrar')
                     ->modalWidth('4xl'),
             ])
-            
+
             // COLUMNAS - CON TOGGLES EN TODAS
             ->columns([
                 // ✅ COLUMNA DE IMAGEN (siempre visible)
@@ -550,7 +561,7 @@ class ProductoResource extends Resource
                         'title' => 'Haz clic para ampliar'
                     ])
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ CÓDIGO DE BARRAS
                 ImageColumn::make('barcode')
                     ->label('Código Barras')
@@ -563,7 +574,7 @@ class ProductoResource extends Resource
                     ])
                     ->placeholder('Sin SKU')
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ SKU
                 Tables\Columns\TextColumn::make('sku')
                     ->label('SKU')
@@ -573,28 +584,50 @@ class ProductoResource extends Resource
                     ->color('primary')
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ MODELO
                 Tables\Columns\TextColumn::make('modelo')
                     ->label('Modelo')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ NOMBRE
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ SERIE
                 Tables\Columns\TextColumn::make('serie')
                     ->label('Serie')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
+                // ✅ AÑO DE FABRICACIÓN
+                Tables\Columns\TextColumn::make('año_fabricacion')
+                    ->label('Año Fabricación')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false)
+                    ->badge()
+                    ->color(function ($state) {
+                        if (!$state) {
+                            return 'gray';
+                        }
+                        $currentYear = date('Y');
+                        if ($state >= $currentYear - 2) {
+                            return 'success';
+                        }
+                        if ($state >= $currentYear - 5) {
+                            return 'warning';
+                        }
+                        return 'danger';
+                    })
+                    ->formatStateUsing(fn($state) => $state ?: 'N/E'),
+
                 // ✅ STOCK
                 Tables\Columns\TextColumn::make('stock')
                     ->label('Stock')
@@ -603,8 +636,8 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color(fn($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'success'))
                     ->toggleable(isToggledHiddenByDefault: false),
-                
-                // ✅ MALETÍN ASOCIADO (NUEVO - AGREGADO)
+
+                // ✅ MALETÍN ASOCIADO
                 Tables\Columns\TextColumn::make('maletin_estado')
                 ->label('Maletín')
                 ->getStateUsing(function ($record) {
@@ -625,14 +658,14 @@ class ProductoResource extends Resource
                         ->label('')
                         ->icon('heroicon-o-arrow-right')
                         ->tooltip('Editar maletín asociado')
-                        ->url(fn ($record) => $record->maletines->isNotEmpty() 
+                        ->url(fn ($record) => $record->maletines->isNotEmpty()
                             ? '/admin/maletins/' . $record->maletines->first()->id . '/edit'
                             : null
                         )
                         ->openUrlInNewTab(false)
                         ->color('primary')
                 ),
-                
+
                 // ✅ CATEGORÍA
                 Tables\Columns\TextColumn::make('categoria.nombre')
                     ->label('Categoría')
@@ -641,7 +674,7 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color('info')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ SUBCATEGORÍA
                 Tables\Columns\TextColumn::make('subcategoria.nombre')
                     ->label('Subcategoría')
@@ -650,7 +683,7 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color('warning')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ MARCA
                 Tables\Columns\TextColumn::make('marca.nombre')
                     ->label('Marca')
@@ -659,14 +692,14 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color('secondary')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ UNIDAD DE COMPRA
                 Tables\Columns\TextColumn::make('unidadCompra.nombre')
                     ->label('Unidad')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ NATURALEZA
                 Tables\Columns\TextColumn::make('naturaleza.nombre')
                     ->label('Naturaleza')
@@ -679,7 +712,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ ESTADO
                 Tables\Columns\TextColumn::make('estado.nombre')
                     ->label('Estado')
@@ -692,7 +725,7 @@ class ProductoResource extends Resource
                         default => 'gray',
                     })
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ REQUIERE INVENTARIO
                 Tables\Columns\IconColumn::make('reqInventario.nombre')
                     ->label('Inventario')
@@ -708,7 +741,7 @@ class ProductoResource extends Resource
                     })
                     ->tooltip('Requiere Inventario')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ REQUIERE SERIE
                 Tables\Columns\IconColumn::make('reqSerie.nombre')
                     ->label('Serie Req')
@@ -724,7 +757,7 @@ class ProductoResource extends Resource
                     })
                     ->tooltip('Requiere Serie')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ REQUIERE LOTE
                 Tables\Columns\IconColumn::make('reqLote.nombre')
                     ->label('Lote Req')
@@ -740,7 +773,7 @@ class ProductoResource extends Resource
                     })
                     ->tooltip('Requiere Lote')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ REQUIERE CALIBRACIÓN
                 Tables\Columns\IconColumn::make('reqCalibracion.nombre')
                     ->label('Calib Req')
@@ -756,7 +789,7 @@ class ProductoResource extends Resource
                     })
                     ->tooltip('Requiere Calibración')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ PRÓXIMA RECALIBRACIÓN
                 Tables\Columns\TextColumn::make('proxima_recalibracion_formatted')
                     ->label('Próx. Recalibración')
@@ -764,7 +797,7 @@ class ProductoResource extends Resource
                     ->badge()
                     ->color(fn($record) => $record->proxima_recalibracion_color)
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ✅ FECHA CREACIÓN
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
@@ -772,7 +805,7 @@ class ProductoResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            
+
             ->filters([
                 Tables\Filters\SelectFilter::make('categoria_id')
                     ->label('Categoría')
@@ -780,38 +813,38 @@ class ProductoResource extends Resource
                     ->searchable()
                     ->preload()
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('subcategoria_id')
                     ->label('Subcategoría')
                     ->relationship('subcategoria', 'nombre')
                     ->searchable()
                     ->preload()
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('marca_id')
                     ->label('Marca')
                     ->relationship('marca', 'nombre')
                     ->searchable()
                     ->preload()
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('unidad_compra_id')
                     ->label('Unidad de Compra')
                     ->relationship('unidadCompra', 'nombre')
                     ->searchable()
                     ->preload()
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('naturaleza_id')
                     ->label('Naturaleza')
                     ->relationship('naturaleza', 'nombre')
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('estado_id')
                     ->label('Estado')
                     ->relationship('estado', 'nombre')
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('req_inventario_id')
                     ->label('Requiere Inventario')
                     ->options([
@@ -819,7 +852,7 @@ class ProductoResource extends Resource
                         '3' => 'No',
                     ])
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('req_serie_id')
                     ->label('Requiere Serie')
                     ->options([
@@ -827,7 +860,7 @@ class ProductoResource extends Resource
                         '3' => 'No',
                     ])
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('req_lote_id')
                     ->label('Requiere Lote')
                     ->options([
@@ -835,7 +868,7 @@ class ProductoResource extends Resource
                         '3' => 'No',
                     ])
                     ->multiple(),
-                
+
                 Tables\Filters\SelectFilter::make('req_calibracion_id')
                     ->label('Requiere Calibración')
                     ->options([
@@ -843,7 +876,37 @@ class ProductoResource extends Resource
                         '2' => 'No',
                     ])
                     ->multiple(),
-                
+
+                // 👈 FILTRO: MALETÍN
+                Tables\Filters\SelectFilter::make('maletin_id')
+                    ->label('Maletín')
+                    ->options(function () {
+                        return \App\Models\Maletin::pluck('nombre', 'id')->toArray();
+                    })
+                    ->searchable()
+                    ->preload()
+                    ->query(function ($query, $data) {
+                        if (!empty($data['value'])) {
+                            $query->whereHas('maletines', function ($q) use ($data) {
+                                $q->where('maletins.id', $data['value']);
+                            });
+                        }
+                    }),
+
+                // 👈 FILTRO: AÑO DE FABRICACIÓN
+                Tables\Filters\SelectFilter::make('año_fabricacion')
+                    ->label('Año de Fabricación')
+                    ->options(function () {
+                        return Producto::whereNotNull('año_fabricacion')
+                            ->select('año_fabricacion')
+                            ->distinct()
+                            ->orderBy('año_fabricacion', 'desc')
+                            ->pluck('año_fabricacion', 'año_fabricacion')
+                            ->toArray();
+                    })
+                    ->searchable()
+                    ->preload(),
+
                 Tables\Filters\Filter::make('created_at')
                     ->label('Fecha de creación')
                     ->form([
@@ -862,14 +925,14 @@ class ProductoResource extends Resource
                     ->columns(2)
                     ->columnSpanFull(),
             ])
-            
+
             // ==================== ✅ ACCIONES POR FILA ====================
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-                
+
                 // ==================== ✅ ACCIONES CON FOTOS ====================
-                
+
                 // 📥 FOTOENT - Entrada con Fotos
                 Tables\Actions\Action::make('fotoent')
                     ->label('📥 FotoEnt')
@@ -884,18 +947,18 @@ class ProductoResource extends Resource
                             ->default(1)
                             ->minValue(1)
                             ->required(),
-                        
+
                         Forms\Components\Textarea::make('observaciones')
                             ->label('Observaciones')
                             ->placeholder('Ej: Equipo regresa de reparación, estado...')
                             ->rows(3),
-                        
+
                         Forms\Components\TextInput::make('realizado_por')
                             ->label('Recibido por')
                             ->placeholder('Nombre de la persona que recibe')
                             ->maxLength(100)
                             ->default(Auth::user()?->name ?? 'Sistema'),
-                        
+
                         Forms\Components\FileUpload::make('fotos')
                             ->label('📸 Fotos del equipo (al regresar)')
                             ->multiple()
@@ -909,14 +972,14 @@ class ProductoResource extends Resource
                     ])
                     ->action(function ($record, array $data, $livewire) {
                         Log::info('========== FOTOENT INICIADO ==========');
-                        
+
                         $stockAnterior = $record->stock ?? 0;
                         $cantidad = $data['cantidad'] ?? 1;
                         $nuevoStock = $stockAnterior + $cantidad;
-                        
+
                         $fotos = $livewire->data['fotos'] ?? $data['fotos'] ?? [];
                         Log::info('Fotos desde Livewire:', ['count' => count($fotos)]);
-                        
+
                         $movimiento = Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'entrada',
@@ -926,14 +989,14 @@ class ProductoResource extends Resource
                             'observaciones' => $data['observaciones'] ?? null,
                             'realizado_por' => $data['realizado_por'] ?? Auth::user()?->name ?? 'Sistema',
                         ]);
-                        
+
                         Log::info('Movimiento creado:', ['id' => $movimiento->id]);
-                        
+
                         $fotosGuardadas = 0;
-                        
+
                         if (!empty($fotos) && is_array($fotos)) {
                             Log::info('Procesando ' . count($fotos) . ' foto(s)...');
-                            
+
                             foreach ($fotos as $foto) {
                                 try {
                                     if ($foto instanceof TemporaryUploadedFile) {
@@ -967,21 +1030,21 @@ class ProductoResource extends Resource
                                 }
                             }
                         }
-                        
+
                         Log::info('Total fotos guardadas en ENTRADA: ' . $fotosGuardadas);
-                        
+
                         $record->stock = $nuevoStock;
                         $record->save();
-                        
+
                         Log::info('========== FOTOENT FINALIZADO ==========');
-                        
+
                         Notification::make()
                             ->title('📥 Entrada registrada con éxito')
                             ->body("{$record->nombre}: {$stockAnterior} → {$nuevoStock} | Fotos: {$fotosGuardadas}")
                             ->success()
                             ->send();
                     }),
-                
+
                 // 📤 FOTOSAL - Salida con Fotos
                 Tables\Actions\Action::make('fotosal')
                     ->label('📤 FotoSal')
@@ -996,18 +1059,18 @@ class ProductoResource extends Resource
                             ->default(1)
                             ->minValue(1)
                             ->required(),
-                        
+
                         Forms\Components\Textarea::make('observaciones')
                             ->label('Observaciones')
                             ->placeholder('Ej: Equipo sale para reparación, estado actual...')
                             ->rows(3),
-                        
+
                         Forms\Components\TextInput::make('realizado_por')
                             ->label('Realizado por')
                             ->placeholder('Nombre de la persona que retira')
                             ->maxLength(100)
                             ->default(Auth::user()?->name ?? 'Sistema'),
-                        
+
                         Forms\Components\FileUpload::make('fotos')
                             ->label('📸 Fotos del equipo (al salir)')
                             ->multiple()
@@ -1021,10 +1084,10 @@ class ProductoResource extends Resource
                     ])
                     ->action(function ($record, array $data, $livewire) {
                         Log::info('========== FOTOSAL INICIADO ==========');
-                        
+
                         $stockAnterior = $record->stock ?? 0;
                         $cantidad = $data['cantidad'] ?? 1;
-                        
+
                         if ($stockAnterior < $cantidad) {
                             Notification::make()
                                 ->title('❌ Stock insuficiente')
@@ -1033,12 +1096,12 @@ class ProductoResource extends Resource
                                 ->send();
                             return;
                         }
-                        
+
                         $nuevoStock = $stockAnterior - $cantidad;
-                        
+
                         $fotos = $livewire->data['fotos'] ?? $data['fotos'] ?? [];
                         Log::info('Fotos desde Livewire:', ['count' => count($fotos)]);
-                        
+
                         $movimiento = Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'salida',
@@ -1048,14 +1111,14 @@ class ProductoResource extends Resource
                             'observaciones' => $data['observaciones'] ?? null,
                             'realizado_por' => $data['realizado_por'] ?? Auth::user()?->name ?? 'Sistema',
                         ]);
-                        
+
                         Log::info('Movimiento creado:', ['id' => $movimiento->id]);
-                        
+
                         $fotosGuardadas = 0;
-                        
+
                         if (!empty($fotos) && is_array($fotos)) {
                             Log::info('Procesando ' . count($fotos) . ' foto(s)...');
-                            
+
                             foreach ($fotos as $foto) {
                                 try {
                                     if ($foto instanceof TemporaryUploadedFile) {
@@ -1089,23 +1152,23 @@ class ProductoResource extends Resource
                                 }
                             }
                         }
-                        
+
                         Log::info('Total fotos guardadas en SALIDA: ' . $fotosGuardadas);
-                        
+
                         $record->stock = $nuevoStock;
                         $record->save();
-                        
+
                         Log::info('========== FOTOSAL FINALIZADO ==========');
-                        
+
                         Notification::make()
                             ->title('📤 Salida registrada con éxito')
                             ->body("{$record->nombre}: {$stockAnterior} → {$nuevoStock} | Fotos: {$fotosGuardadas}")
                             ->success()
                             ->send();
                     }),
-                
+
                 // ==================== ACCIONES EXISTENTES ====================
-                
+
                 // 📥 ENTRADA (rápida)
                 Tables\Actions\Action::make('entrada')
                     ->label('📥 Entrada')
@@ -1114,10 +1177,10 @@ class ProductoResource extends Resource
                     ->action(function ($record) {
                         $stockAnterior = $record->stock ?? 0;
                         $nuevoStock = $stockAnterior + 1;
-                        
+
                         $record->stock = $nuevoStock;
                         $record->save();
-                        
+
                         Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'entrada',
@@ -1127,14 +1190,14 @@ class ProductoResource extends Resource
                             'observaciones' => 'Entrada rápida',
                             'realizado_por' => Auth::user()?->name ?? 'Sistema',
                         ]);
-                        
+
                         Notification::make()
                             ->title('📥 Entrada registrada')
                             ->body($record->nombre . ': ' . $stockAnterior . ' → ' . $nuevoStock)
                             ->success()
                             ->send();
                     }),
-                
+
                 // 📤 SALIDA (rápida)
                 Tables\Actions\Action::make('salida')
                     ->label('📤 Salida')
@@ -1142,7 +1205,7 @@ class ProductoResource extends Resource
                     ->color('danger')
                     ->action(function ($record) {
                         $stockAnterior = $record->stock ?? 0;
-                        
+
                         if ($stockAnterior <= 0) {
                             Notification::make()
                                 ->title('❌ Sin stock disponible')
@@ -1151,12 +1214,12 @@ class ProductoResource extends Resource
                                 ->send();
                             return;
                         }
-                        
+
                         $nuevoStock = $stockAnterior - 1;
-                        
+
                         $record->stock = $nuevoStock;
                         $record->save();
-                        
+
                         Movimiento::create([
                             'producto_id' => $record->id,
                             'tipo' => 'salida',
@@ -1166,14 +1229,14 @@ class ProductoResource extends Resource
                             'observaciones' => 'Salida rápida',
                             'realizado_por' => Auth::user()?->name ?? 'Sistema',
                         ]);
-                        
+
                         Notification::make()
                             ->title('📤 Salida registrada')
                             ->body($record->nombre . ': ' . $stockAnterior . ' → ' . $nuevoStock)
                             ->success()
                             ->send();
                     }),
-                
+
                 // ==================== ✅ SHOW FOTOS CON SCROLL ====================
                 Tables\Actions\Action::make('show_fotos')
                 ->label('📸 Show Fotos')
@@ -1188,30 +1251,30 @@ class ProductoResource extends Resource
                     ->with('movimiento')
                     ->latest()
                     ->get();
-            
+
                     if ($fotosQuery->isEmpty()) {
                         return new HtmlString('<div class="text-center text-gray-600 dark:text-gray-400 p-8">📷 No hay fotos registradas para este producto.</div>');
                     }
-            
+
                     $movimientosAgrupados = $fotosQuery->groupBy('movimiento_id');
                     $totalMovimientos = $movimientosAgrupados->count();
-            
+
                     // ✅ SCROLL EN EL MODAL
                     $html = '<div class="space-y-6 max-h-[75vh] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">';
-            
+
                     foreach ($movimientosAgrupados as $movimientoId => $fotosDelMovimiento) {
                         $movimiento = $fotosDelMovimiento->first()->movimiento;
-                        
+
                         $tipoColor = $movimiento->tipo == 'entrada' ? 'green' : 'red';
                         $tipoBg = $movimiento->tipo == 'entrada' ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900';
                         $tipoText = $movimiento->tipo == 'entrada' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300';
-                        
+
                         $icon = $movimiento->tipo == 'entrada' ? '📥' : '📤';
                         $tipoLabel = ucfirst($movimiento->tipo);
                         $realizadoPor = $movimiento->realizado_por ?? 'Sistema';
                         $fecha = $movimiento->created_at->format('d/m/Y H:i:s');
                         $observaciones = $movimiento->observaciones ?? '';
-            
+
                         $html .= <<<HTML
                             <div class="border rounded-xl p-5 bg-white dark:bg-gray-800 shadow-sm">
                                 <div class="flex justify-between items-start mb-4">
@@ -1229,17 +1292,17 @@ class ProductoResource extends Resource
                                         <div>👤 {$realizadoPor}</div>
                                     </div>
                                 </div>
-            
+
                                 <div class="text-sm text-gray-800 dark:text-white mb-4 font-medium">{$observaciones}</div>
-            
+
                                 <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                         HTML;
-            
+
                         foreach ($fotosDelMovimiento as $foto) {
                             $url = asset('storage/' . $foto->ruta_imagen);
                             $descripcion = $foto->descripcion ?? 'Foto del movimiento';
                             $tipo = $movimiento->tipo;
-            
+
                             $html .= <<<HTML
                                 <div class="relative group">
                                     <img src="{$url}" alt="{$descripcion}"
@@ -1252,7 +1315,7 @@ class ProductoResource extends Resource
                                 </div>
                             HTML;
                         }
-            
+
                         $html .= <<<HTML
                                 </div>
                                 <div class="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center">
@@ -1261,16 +1324,16 @@ class ProductoResource extends Resource
                             </div>
                         HTML;
                     }
-            
+
                     $html .= '</div>';
-            
+
                     // ✅ Mostrar total de movimientos
                     $html .= <<<HTML
                         <div class="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">
                             📊 Total: {$totalMovimientos} movimiento(s) registrado(s)
                         </div>
                     HTML;
-            
+
                     // ✅ SOLO SCRIPTS PARA CIERRE DE MODALES (si los hay)
                     $html .= <<<HTML
                         <style>
@@ -1296,7 +1359,7 @@ class ProductoResource extends Resource
                             }
                         </style>
                     HTML;
-            
+
                     return new HtmlString($html);
                 })
                 ->modalSubmitAction(false)
@@ -1311,7 +1374,7 @@ class ProductoResource extends Resource
                             $fotos = MovimientoFoto::whereHas('movimiento', function ($query) use ($record) {
                                 $query->where('producto_id', $record->id);
                             })->get();
-                            
+
                             if ($fotos->isEmpty()) {
                                 Notification::make()
                                     ->title('❌ No hay fotos para descargar')
@@ -1319,15 +1382,15 @@ class ProductoResource extends Resource
                                     ->send();
                                 return;
                             }
-                            
+
                             $zip = new \ZipArchive();
                             $zipName = 'fotos_' . $record->sku . '_' . now()->format('Ymd_His') . '.zip';
                             $zipPath = storage_path('app/temp/' . $zipName);
-                            
+
                             if (!is_dir(storage_path('app/temp'))) {
                                 mkdir(storage_path('app/temp'), 0755, true);
                             }
-                            
+
                             if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
                                 foreach ($fotos as $foto) {
                                     $filePath = storage_path('app/public/' . $foto->ruta_imagen);
@@ -1336,17 +1399,17 @@ class ProductoResource extends Resource
                                     }
                                 }
                                 $zip->close();
-                                
+
                                 return response()->download($zipPath)->deleteFileAfterSend(true);
                             }
-                            
+
                             Notification::make()
                                 ->title('❌ Error al crear el ZIP')
                                 ->danger()
                                 ->send();
                         }),
                 ]),
-                
+
                 // Imprimir Etiqueta
                 Tables\Actions\Action::make('imprimir_etiqueta')
                     ->label('Imprimir Etiqueta')
@@ -1355,7 +1418,7 @@ class ProductoResource extends Resource
                     ->url(fn (Producto $record) => $record->sku ? route('etiqueta.producto', $record) : null)
                     ->openUrlInNewTab()
                     ->visible(fn (Producto $record): bool => filled($record->sku)),
-                
+
                 // Descargar ZPL
                 Tables\Actions\Action::make('descargar_zpl')
                     ->label('Descargar ZPL')
@@ -1430,16 +1493,16 @@ class ProductoResource extends Resource
                             </div>
                             <div class="flex flex-col gap-3">
                                 <!-- Opción 1: Abrir Direct Communication -->
-                                <a href="' . route('etiqueta.abrir', $record) . '" 
+                                <a href="' . route('etiqueta.abrir', $record) . '"
                                    class="btn-option btn-option-blue">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2H5z"/>
                                     </svg>
                                     📥 Abrir Direct Communication
                                 </a>
-                                
+
                                 <!-- Opción 2: Descargar ZPL y abrir Direct Comm -->
-                                <a href="' . route('etiqueta.descargar', $record) . '" 
+                                <a href="' . route('etiqueta.descargar', $record) . '"
                                    class="btn-option btn-option-green">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -1451,14 +1514,14 @@ class ProductoResource extends Resource
                     ');
                 }),
             ])
-            
+
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Eliminar seleccionados')
                         ->icon('heroicon-o-trash')
                         ->color('secondary'),
-                    
+
                     Tables\Actions\BulkAction::make('exportar_seleccionados_excel')
                         ->label('Exportar seleccionados a Excel')
                         ->icon('heroicon-o-arrow-down-tray')
@@ -1471,6 +1534,7 @@ class ProductoResource extends Resource
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
                                     'serie' => 'Serie',
+                                    'año_fabricacion' => 'Año Fabricación',
                                     'stock' => 'Stock',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
@@ -1493,7 +1557,7 @@ class ProductoResource extends Resource
                             $export = new ProductosExport($records, $data['columnas'] ?? []);
                             return Excel::download($export, 'Detalle_inventario_herramientas_' . now()->format('Ymd_His') . '.xlsx');
                         }),
-                    
+
                     Tables\Actions\BulkAction::make('exportar_seleccionados_pdf')
                         ->label('Exportar seleccionados a PDF')
                         ->icon('heroicon-o-document')
@@ -1506,6 +1570,7 @@ class ProductoResource extends Resource
                                     'modelo' => 'Modelo',
                                     'nombre' => 'Nombre',
                                     'serie' => 'Serie',
+                                    'año_fabricacion' => 'Año Fabricación',
                                     'stock' => 'Stock',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
@@ -1535,7 +1600,7 @@ class ProductoResource extends Resource
                         }),
                 ]),
             ])
-            
+
             ->striped()
             ->emptyStateHeading('No hay productos')
             ->emptyStateDescription('Crea un producto o importa desde Excel para comenzar.')
@@ -1565,8 +1630,8 @@ class ProductoResource extends Resource
 
         return new HtmlString(<<<HTML
             <div class="flex justify-center items-center p-4">
-                <img 
-                    src="{$imageUrl}" 
+                <img
+                    src="{$imageUrl}"
                     alt="{$nombre}"
                     class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-xl"
                     style="border: 2px solid #e5e7eb;"
@@ -1583,14 +1648,14 @@ class ProductoResource extends Resource
         if (!$movimiento->fotos || $movimiento->fotos->isEmpty()) {
             return '<div class="text-xs text-gray-400 mt-1">📷 Sin fotos</div>';
         }
-        
+
         $html = '<div class="flex flex-wrap gap-2 mt-2">';
         foreach ($movimiento->fotos as $foto) {
             $url = asset('storage/' . $foto->ruta_imagen);
             $html .= <<<HTML
                 <div class="relative group">
-                    <img 
-                        src="{$url}" 
+                    <img
+                        src="{$url}"
                         alt="Foto de {$movimiento->tipo}"
                         class="w-20 h-20 object-cover rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
                         onclick="window.open('{$url}', '_blank')"
@@ -1602,7 +1667,7 @@ class ProductoResource extends Resource
             HTML;
         }
         $html .= '</div>';
-        
+
         return $html;
     }
 }
