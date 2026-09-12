@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "mike42/escpos-php": "^4.0",
+        "mpdf/mpdf": "^8.3",
         "picqer/php-barcode-generator": "^3.2",
         "rawilk/laravel-printing": "^4.1",
         "spatie/laravel-activitylog": "^4.12"
