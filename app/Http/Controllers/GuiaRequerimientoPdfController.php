@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\GuiaRequerimiento;
+use App\Models\Imagen; // ✅ Importar el modelo
 use Mpdf\Mpdf;
 use Mpdf\Output\Destination;
 
@@ -31,8 +32,20 @@ class GuiaRequerimientoPdfController extends Controller
     {
         $guia->load(['items', 'firmas']);
 
+        // ✅ Obtener el logo activo
+        $logo = Imagen::activas()->tipo('logo')->first();
+        $logoBase64 = null;
+        
+        if ($logo && file_exists(storage_path('app/public/' . $logo->archivo))) {
+            $rutaCompleta = storage_path('app/public/' . $logo->archivo);
+            $contenido = file_get_contents($rutaCompleta);
+            $mimeType = mime_content_type($rutaCompleta);
+            $logoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($contenido);
+        }
+
         $html = view('pdf.guia-requerimiento', [
             'guia' => $guia,
+            'logoUrl' => $logoBase64, // ✅ Pasar el logo en base64
         ])->render();
 
         $mpdf = new Mpdf([

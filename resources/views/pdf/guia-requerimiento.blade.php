@@ -23,7 +23,6 @@ body {
     padding: 0;
 }
 
-/* ⚠️ Quitamos el borde global — cada tabla decide si tiene o no */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -63,8 +62,8 @@ td, th {
 }
 
 .logo-box img {
-    max-width: 23mm;           /* ~10mm de alto manteniendo proporción 214:92 */
-    max-height: 1mm;
+    max-width: 23mm;
+    max-height: 10mm;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -106,8 +105,7 @@ td, th {
 .info-box table td:last-child     { border-right: none !important; }
 
 /* =========================================
-   DATOS DEL PROYECTO — SIN NINGÚN BORDE
-   (solo línea inferior en los valores)
+   DATOS DEL PROYECTO
 ========================================= */
 
 .project-info-table {
@@ -164,7 +162,7 @@ td, th {
 }
 
 /* =========================================
-   TABLA PRINCIPAL — CON BORDES
+   TABLA PRINCIPAL
 ========================================= */
 
 .main-table {
@@ -215,18 +213,17 @@ td, th {
 }
 
 /* =========================================
-   FIRMAS — SIN RECUADRO EXTERIOR GRANDE
-   Solo los bordes internos de cada tabla
+   FIRMAS
 ========================================= */
 
 .signatures-outer {
     margin-top: 10px;
-    border: none !important;         /* ← quita el recuadro grande exterior */
+    border: none !important;
     border-collapse: collapse;
 }
 
 .signatures-outer > tbody > tr > td {
-    border: none !important;         /* ← quita el recuadro grande exterior */
+    border: none !important;
     padding: 0;
     vertical-align: top;
 }
@@ -236,11 +233,10 @@ td, th {
 .signatures-outer-right { width: 33%; }
 
 .signatures {
-    border: none !important;         /* ← la tabla interior no tiene borde exterior */
+    border: none !important;
     border-collapse: collapse;
 }
 
-/* Cada celda de firmas SÍ tiene borde (como tu imagen) */
 .signatures td,
 .signatures th {
     height: 22px;
@@ -327,20 +323,35 @@ td, th {
 
 <div class="page">
 
+    {{-- ✅ LOGO DESDE EL RESOURCE DE IMÁGENES --}}
     @php
-        $posiblesLogos = [
-            'images/logo.png',
-            'images/logo.jpg',
-            'images/logo.jpeg',
-            'images/login-logo.png',
-        ];
+        // 1. Intentar obtener el logo desde la base de datos
+        $logoImagen = \App\Models\Imagen::activas()->tipo('logo')->first();
         $logoBase64 = '';
-        foreach ($posiblesLogos as $ruta) {
-            $rutaCompleta = public_path($ruta);
+        
+        if ($logoImagen) {
+            $rutaCompleta = storage_path('app/public/' . $logoImagen->archivo);
             if (file_exists($rutaCompleta)) {
                 $mime = mime_content_type($rutaCompleta) ?: 'image/png';
                 $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($rutaCompleta));
-                break;
+            }
+        }
+        
+        // 2. Fallback: buscar en public/images/ si no hay en BD
+        if (empty($logoBase64)) {
+            $posiblesLogos = [
+                'images/logo.png',
+                'images/logo.jpg',
+                'images/logo.jpeg',
+                'images/login-logo.png',
+            ];
+            foreach ($posiblesLogos as $ruta) {
+                $rutaCompleta = public_path($ruta);
+                if (file_exists($rutaCompleta)) {
+                    $mime = mime_content_type($rutaCompleta) ?: 'image/png';
+                    $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($rutaCompleta));
+                    break;
+                }
             }
         }
     @endphp
@@ -350,7 +361,8 @@ td, th {
         <tr>
             <td class="logo-box">
                 @if ($logoBase64)
-                    <img src="{{ $logoBase64 }}" alt="O&T">
+                <img src="{{ $logoBase64 }}" alt="O&T" style="width: 25mm; height: auto; max-height: 12mm;">
+
                 @else
                     <span style="font-size:14px;color:#48628c;font-weight:400;">O&T</span>
                 @endif
@@ -377,7 +389,7 @@ td, th {
         </tr>
     </table>
 
-    <!-- ============ DATOS DEL PROYECTO (SIN CUADRO) ============ -->
+    <!-- ============ DATOS DEL PROYECTO ============ -->
     <table class="project-info-table">
         <tr>
             <td class="project-left-cell">
@@ -486,7 +498,7 @@ td, th {
 
     </table>
 
-    <!-- ============ FIRMAS (SIN RECUADRO EXTERIOR) ============ -->
+    <!-- ============ FIRMAS ============ -->
     <table class="signatures-outer">
         <tr>
             <td class="signatures-outer-left">
