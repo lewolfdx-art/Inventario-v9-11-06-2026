@@ -137,7 +137,7 @@ class GuiaRequerimientoResource extends Resource
                         ]),
                 ]),
 
-            // ✅ ÍTEMS DEL REQUERIMIENTO
+            // ✅ ÍTEMS DEL REQUERIMIENTO (SEPARADOS VISUALMENTE)
             Forms\Components\Section::make('Ítems del Requerimiento')
                 ->schema([
                     Forms\Components\Repeater::make('items')
@@ -147,100 +147,121 @@ class GuiaRequerimientoResource extends Resource
                         ->reorderable('orden')
                         ->addActionLabel('Agregar ítem')
                         ->schema([
-                            Forms\Components\Select::make('producto_id')
-                                ->label('🔍 Buscar herramienta')
-                                ->placeholder('Escribe nombre, SKU o modelo...')
-                                ->searchable()
-                                ->preload()
-                                ->optionsLimit(20)
-                                ->columnSpan(6)
-                                ->getSearchResultsUsing(function (string $search) {
-                                    return \App\Models\Producto::query()
-                                        ->where(function ($q) use ($search) {
-                                            $q->where('nombre', 'like', "%{$search}%")
-                                              ->orWhere('sku', 'like', "%{$search}%")
-                                              ->orWhere('modelo', 'like', "%{$search}%");
+                            // ==========================================
+                            // 🟦 SOLICITADO
+                            // ==========================================
+                            Forms\Components\Fieldset::make('📋 SOLICITADO')
+                                ->columns(12)
+                                ->schema([
+                                    Forms\Components\Select::make('producto_id')
+                                        ->label('🔍 Buscar herramienta')
+                                        ->placeholder('Escribe nombre, SKU o modelo...')
+                                        ->searchable()
+                                        ->preload()
+                                        ->optionsLimit(20)
+                                        ->columnSpan(6)
+                                        ->getSearchResultsUsing(function (string $search) {
+                                            return \App\Models\Producto::query()
+                                                ->where(function ($q) use ($search) {
+                                                    $q->where('nombre', 'like', "%{$search}%")
+                                                      ->orWhere('sku', 'like', "%{$search}%")
+                                                      ->orWhere('modelo', 'like', "%{$search}%");
+                                                })
+                                                ->limit(20)
+                                                ->get()
+                                                ->mapWithKeys(function ($producto) {
+                                                    return [
+                                                        $producto->id => "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})"
+                                                    ];
+                                                })
+                                                ->toArray();
                                         })
-                                        ->limit(20)
-                                        ->get()
-                                        ->mapWithKeys(function ($producto) {
-                                            return [
-                                                $producto->id => "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})"
-                                            ];
+                                        ->getOptionLabelUsing(function ($value) {
+                                            $producto = \App\Models\Producto::find($value);
+                                            return $producto ? "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})" : null;
                                         })
-                                        ->toArray();
-                                })
-                                ->getOptionLabelUsing(function ($value) {
-                                    $producto = \App\Models\Producto::find($value);
-                                    return $producto ? "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})" : null;
-                                })
-                                ->live()
-                                ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                    if ($state) {
-                                        $producto = \App\Models\Producto::find($state);
-                                        if ($producto) {
-                                            $set('descripcion', $producto->nombre);
-                                        }
-                                    }
-                                }),
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                            if ($state) {
+                                                $producto = \App\Models\Producto::find($state);
+                                                if ($producto) {
+                                                    $set('descripcion', $producto->nombre);
+                                                }
+                                            }
+                                        }),
 
-                            Forms\Components\TextInput::make('descripcion')
-                                ->label('Descripción')
-                                ->required(fn (Forms\Get $get) => blank($get('producto_id')))
-                                ->maxLength(500)
-                                ->columnSpan(5)
-                                ->disabled(fn (Forms\Get $get) => filled($get('producto_id')))
-                                ->dehydrated()
-                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                    Forms\Components\TextInput::make('descripcion')
+                                        ->label('Descripción-Se autocompleta al seleccionar un producto')
+                                        ->required(fn (Forms\Get $get) => blank($get('producto_id')))
+                                        ->maxLength(500)
+                                        ->columnSpan(6)
+                                        ->disabled(fn (Forms\Get $get) => filled($get('producto_id')))
+                                        ->dehydrated()
+                                        ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
 
-                            Forms\Components\TextInput::make('item')
-                                ->label('N°')
-                                ->numeric()
-                                ->required()
-                                ->columnSpan(1),
+                                    Forms\Components\TextInput::make('item')
+                                        ->label('N°')
+                                        ->numeric()
+                                        ->required()
+                                        ->columnSpan(1),
 
-                            Forms\Components\TextInput::make('cantidad_solicitada')
-                                ->label('Cant.')
-                                ->numeric()
-                                ->columnSpan(2),
+                                    Forms\Components\TextInput::make('cantidad_solicitada')
+                                        ->label('Cant.')
+                                        ->numeric()
+                                        ->columnSpan(1),
 
-                            Forms\Components\TextInput::make('unidad_solicitada')
-                                ->label('Und.')
-                                ->maxLength(20)
-                                ->columnSpan(2)
-                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                    Forms\Components\TextInput::make('unidad_solicitada')
+                                        ->label('Und.')
+                                        ->maxLength(20)
+                                        ->columnSpan(1)
+                                        ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                ]),
 
-                            Forms\Components\Toggle::make('entregado')
-                                ->label('Entregado')
-                                ->inline(false)
-                                ->columnSpan(2),
+                            // ==========================================
+                            // 🟩 ENTREGADO
+                            // ==========================================
+                            Forms\Components\Fieldset::make('📤 ENTREGADO')
+                                ->columns(12)
+                                ->schema([
+                                    Forms\Components\Toggle::make('entregado')
+                                        ->label('Entregado')
+                                        ->inline(false)
+                                        ->columnSpan(3),
 
-                            Forms\Components\TextInput::make('cantidad_entregada')
-                                ->label('Cant. Entreg.')
-                                ->numeric()
-                                ->columnSpan(2),
+                                    Forms\Components\TextInput::make('cantidad_entregada')
+                                        ->label('Cant. Entreg.')
+                                        ->numeric()
+                                        ->columnSpan(3),
 
-                            Forms\Components\TextInput::make('unidad_entregada')
-                                ->label('Und. Entreg.')
-                                ->maxLength(20)
-                                ->columnSpan(2)
-                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                    Forms\Components\TextInput::make('unidad_entregada')
+                                        ->label('Und. Entreg.')
+                                        ->maxLength(20)
+                                        ->columnSpan(3)
+                                        ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                ]),
 
-                            Forms\Components\Toggle::make('devuelto')
-                                ->label('Devuelto')
-                                ->inline(false)
-                                ->columnSpan(2),
+                            // ==========================================
+                            // 🟥 DEVOLUCIÓN
+                            // ==========================================
+                            Forms\Components\Fieldset::make('📥 DEVOLUCIÓN')
+                                ->columns(12)
+                                ->schema([
+                                    Forms\Components\Toggle::make('devuelto')
+                                        ->label('Devuelto')
+                                        ->inline(false)
+                                        ->columnSpan(3),
 
-                            Forms\Components\TextInput::make('cantidad_devuelta')
-                                ->label('Cant. Dev.')
-                                ->numeric()
-                                ->columnSpan(2),
+                                    Forms\Components\TextInput::make('cantidad_devuelta')
+                                        ->label('Cant. Dev.')
+                                        ->numeric()
+                                        ->columnSpan(3),
 
-                            Forms\Components\TextInput::make('unidad_devuelta')
-                                ->label('Und. Dev.')
-                                ->maxLength(20)
-                                ->columnSpan(2)
-                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                    Forms\Components\TextInput::make('unidad_devuelta')
+                                        ->label('Und. Dev.')
+                                        ->maxLength(20)
+                                        ->columnSpan(3)
+                                        ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                                ]),
                         ]),
                 ]),
 
