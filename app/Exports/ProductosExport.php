@@ -52,6 +52,7 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
             'req_lote'                  => ['header' => 'Requiere Lote',             'value' => fn($p) => $p->reqLote->nombre ?? 'No'],
             'req_calibracion'           => ['header' => 'Requiere Calibración',      'value' => fn($p) => $p->reqCalibracion->nombre ?? 'No'],
             'descripcion'               => ['header' => 'Descripción',               'value' => fn($p) => $p->descripcion ?? ''],
+            'observacion'               => ['header' => 'Observación',               'value' => fn($p) => $p->observacion ?? ''],  // ✅ NUEVO
             'created_at'                => ['header' => 'Fecha Registro',            'value' => fn($p) => $p->created_at?->format('d/m/Y H:i:s') ?? ''],
             'updated_at'                => ['header' => 'Última Actualización',      'value' => fn($p) => $p->updated_at?->format('d/m/Y H:i:s') ?? ''],
         ];

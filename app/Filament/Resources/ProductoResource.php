@@ -189,6 +189,13 @@ class ProductoResource extends Resource
                             ->maxLength(65535)
                             ->columnSpanFull()
                             ->label('Descripción'),
+
+                        // ✅ NUEVO CAMPO: OBSERVACIÓN
+                        Forms\Components\Textarea::make('observacion')
+                            ->maxLength(65535)
+                            ->columnSpanFull()
+                            ->label('Observación')
+                            ->placeholder('Ingrese observaciones adicionales...'),
                     ]),
 
                 // ✅ SECCIÓN DE RECALIBRACIONES

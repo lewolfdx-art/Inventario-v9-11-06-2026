@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use App\Filament\Pages\Dashboard;
+
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
@@ -34,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/login-logo.png'))
             ->brandLogoHeight('3rem')
             
-            // ✅ SOLO CAMBIÉ EL COLOR A AMARILLO
+            // ✅ COLOR AMARILLO
             ->colors([
                 'primary' => Color::Yellow,
             ])
@@ -45,13 +46,11 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Dashboard::class,
             ])
             
-            // ✅ DESCUBRIMIENTO AUTOMÁTICO (esto ya funciona)
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             
-            // ✅ SOLO ELIMINÉ AccountWidget Y FilamentInfoWidget
             ->widgets([
-                // Widgets\AccountWidget::class,    ← ELIMINADO
-                // Widgets\FilamentInfoWidget::class, ← ELIMINADO
+                // Widgets\AccountWidget::class,
+                // Widgets\FilamentInfoWidget::class,
             ])
             
             ->middleware([
@@ -68,6 +67,18 @@ class AdminPanelProvider extends PanelProvider
             
             ->authMiddleware([
                 Authenticate::class,
+            ])
+            
+            // ✅ ORDEN DE LOS GRUPOS DE NAVEGACIÓN
+            ->navigationGroups([
+                'Supervisión',                  // ← PRIMERO
+                'Configuración',                // ← Segundo
+                'Gestión de Inventario',        // ← Tercero
+                'Catalogo de Herramientas',     // ← Cuarto
+                'Gestion de Maletines',         // ← Sexto
+                'Guías',                        // ← Quinto
+
+                
             ])
             
             ->bootUsing(function () {

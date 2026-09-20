@@ -16,7 +16,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $modelo
  * @property string $nombre
  * @property string|null $serie
- * @property int|null $año_fabricacion  // 👈 NUEVO
+ * @property int|null $año_fabricacion
  * @property int $stock
  * @property string|null $imagen
  * @property int $unidad_compra_id
@@ -30,6 +30,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property int $subcategoria_id
  * @property int $marca_id
  * @property string|null $descripcion
+ * @property string|null $observacion
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -42,7 +43,7 @@ class Producto extends Model
         'modelo',
         'nombre',
         'serie',
-        'año_fabricacion',  // 👈 NUEVO
+        'año_fabricacion',
         'stock',
         'imagen',
         'unidad_compra_id',
@@ -56,6 +57,7 @@ class Producto extends Model
         'subcategoria_id',
         'marca_id',
         'descripcion',
+        'observacion',
     ];
 
     // ========== CONFIGURACIÓN DE LOGS ==========
@@ -65,7 +67,7 @@ class Producto extends Model
         'modelo',
         'nombre',
         'serie',
-        'año_fabricacion',  // 👈 NUEVO
+        'año_fabricacion',
         'stock',
         'imagen',
         'categoria_id',
@@ -79,6 +81,7 @@ class Producto extends Model
         'req_calibracion_id',
         'estado_id',
         'descripcion',
+        'observacion',
     ];
 
     protected static $logOnlyDirty = true;
@@ -112,7 +115,7 @@ class Producto extends Model
         return !empty($this->imagen) && Storage::disk('public')->exists($this->imagen);
     }
 
-    // ========== ACCESORS PARA AÑO DE FABRICACIÓN ==========  // 👈 NUEVO BLOQUE
+    // ========== ACCESORS PARA AÑO DE FABRICACIÓN ==========
     
     public function getAñoFabricacionFormattedAttribute()
     {
@@ -203,7 +206,7 @@ class Producto extends Model
         return $this->maletines()->exists();
     }
 
-    // ========== SCOPES PARA FILTROS ==========  // 👈 NUEVO BLOQUE
+    // ========== SCOPES PARA FILTROS ==========
     
     /**
      * Scope para filtrar por maletín

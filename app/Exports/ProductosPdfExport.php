@@ -32,7 +32,7 @@ class ProductosPdfExport
             'modelo' => 'Modelo',
             'nombre' => 'Nombre',
             'serie' => 'Serie',
-            'año_fabricacion' => 'Año Fabricación',  // 👈 NUEVO
+            'año_fabricacion' => 'Año Fabricación',
             'categoria' => 'Categoría',
             'subcategoria' => 'Subcategoría',
             'marca' => 'Marca',
@@ -44,6 +44,7 @@ class ProductosPdfExport
             'req_lote' => 'Requiere Lote',
             'req_calibracion' => 'Requiere Calibración',
             'descripcion' => 'Descripción',
+            'observacion' => 'Observación',  // ✅ NUEVO
             'created_at' => 'Fecha Registro',
         ];
     }
@@ -82,7 +83,8 @@ class ProductosPdfExport
                     'req_lote' => $producto->reqLote->nombre ?? '',
                     'req_calibracion' => $producto->reqCalibracion->nombre ?? '',
                     'serie' => $producto->serie ?? '',
-                    'año_fabricacion' => $producto->año_fabricacion ?? '',  // 👈 NUEVO
+                    'año_fabricacion' => $producto->año_fabricacion ?? '',
+                    'observacion' => $producto->observacion ?? '',  // ✅ NUEVO
                     default => $producto->$key ?? '',
                 };
                 $row[] = $this->cleanString($value);

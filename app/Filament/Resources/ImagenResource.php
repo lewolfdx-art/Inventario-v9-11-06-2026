@@ -28,7 +28,7 @@ class ImagenResource extends Resource
     protected static ?string $navigationLabel = 'Imágenes';
     protected static ?string $pluralLabel = 'Imágenes';
     protected static ?string $label = 'Imagen';
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

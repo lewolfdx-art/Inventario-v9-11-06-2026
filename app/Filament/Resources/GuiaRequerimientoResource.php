@@ -43,6 +43,26 @@ class GuiaRequerimientoResource extends Resource
     }
 
     // ==========================================
+    // Helper para generar el siguiente código
+    // ==========================================
+    public static function generarSiguienteCodigo(): string
+    {
+        $ultimo = \App\Models\GuiaRequerimiento::query()
+            ->where('codigo', 'like', 'LOG-FOR-%')
+            ->orderByRaw('CAST(SUBSTRING(codigo, 9) AS UNSIGNED) DESC')
+            ->first();
+
+        if (!$ultimo) {
+            return 'LOG-FOR-001';
+        }
+
+        $numero = (int) substr($ultimo->codigo, 8);
+        $siguiente = $numero + 1;
+
+        return 'LOG-FOR-' . str_pad($siguiente, 3, '0', STR_PAD_LEFT);
+    }
+
+    // ==========================================
     // FORMULARIO
     // ==========================================
     public static function form(Form $form): Form
@@ -53,9 +73,20 @@ class GuiaRequerimientoResource extends Resource
                 ->columns(3)
                 ->schema([
                     Forms\Components\TextInput::make('codigo')
-                        ->default('LOG-FOR-001')
+                        ->label('Código')
+                        ->default(function () {
+                            if (session('guia_codigo_automatico', true)) {
+                                return static::generarSiguienteCodigo();
+                            }
+                            return 'LOG-FOR-001';
+                        })
                         ->required()
-                        ->maxLength(50),
+                        ->maxLength(50)
+                        ->readOnly(fn () => session('guia_codigo_automatico', true))
+                        ->helperText(fn () => session('guia_codigo_automatico', true)
+                            ? '🔒 Código generado automáticamente. Desactiva el switch en la lista para editarlo.'
+                            : '🔓 Modo manual: escribe el código que quieras.'
+                        ),
 
                     Forms\Components\TextInput::make('version')
                         ->default('02')

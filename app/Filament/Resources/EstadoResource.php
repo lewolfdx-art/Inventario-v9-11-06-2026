@@ -17,7 +17,7 @@ class EstadoResource extends Resource
     protected static ?string $navigationGroup = 'Configuración';
     protected static ?string $pluralLabel = 'Estados';
     protected static ?string $label = 'Estado';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
