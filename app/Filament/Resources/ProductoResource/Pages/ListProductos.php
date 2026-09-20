@@ -8,6 +8,8 @@ use App\Models\Movimiento;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Notifications\Notification;
+use Filament\Actions\Action;
+use Illuminate\Support\HtmlString;
 
 class ListProductos extends ListRecords
 {
@@ -19,6 +21,71 @@ class ListProductos extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // ✅ SWITCH PARA VER PRODUCTOS SIN STOCK
+            Action::make('verSinStock')
+                ->label('🔴 Ver productos sin stock')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->color('danger')
+                ->modalHeading('🔴 Productos sin Stock')
+                ->modalDescription('Productos que actualmente tienen 0 unidades disponibles')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Cerrar')
+                ->modalWidth('4xl')
+                ->modalContent(function () {
+                    $productos = Producto::where('stock', '<=', 0)
+                        ->orderBy('nombre')
+                        ->get();
+
+                    if ($productos->isEmpty()) {
+                        return new HtmlString('
+                            <div class="text-center p-8">
+                                <div class="text-6xl mb-4">✅</div>
+                                <div class="text-xl font-bold text-green-600">No hay productos sin stock</div>
+                                <div class="text-gray-500 mt-2">Todos los productos tienen stock disponible</div>
+                            </div>
+                        ');
+                    }
+
+                    $html = '<div class="space-y-2 max-h-[60vh] overflow-y-auto p-2" style="scrollbar-width: thin;">';
+                    
+                    $html .= '<div class="text-sm text-gray-500 mb-3 text-center">Total: ' . $productos->count() . ' producto(s) sin stock</div>';
+                    
+                    $html .= '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
+                    
+                    foreach ($productos as $producto) {
+                        $editUrl = '/admin/productos/' . $producto->id . '/edit';
+                        $nombre = e($producto->nombre);
+                        $sku = e($producto->sku);
+                        $modelo = e($producto->modelo ?? 'N/A');
+                        $marca = e($producto->marca?->nombre ?? 'N/A');
+                        
+                        $html .= <<<HTML
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-2 border-red-200 dark:border-red-800 shadow-sm hover:shadow-md transition">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-sm text-gray-900 dark:text-white truncate">{$nombre}</div>
+                                        <div class="text-xs text-gray-500 mt-1">SKU: <span class="font-mono">{$sku}</span></div>
+                                        <div class="text-xs text-gray-500">Modelo: {$modelo}</div>
+                                        <div class="text-xs text-gray-500">Marca: {$marca}</div>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 font-bold text-base">
+                                            0
+                                        </span>
+                                    </div>
+                                </div>
+                                <a href="{$editUrl}" class="mt-2 block text-center text-xs bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1.5 px-3 rounded-lg transition">
+                                    ✏️ Editar
+                                </a>
+                            </div>
+                        HTML;
+                    }
+                    
+                    $html .= '</div></div>';
+                    
+                    return new HtmlString($html);
+                }),
+
             Actions\CreateAction::make()
                 ->label('Nuevo Producto')
                 ->icon('heroicon-o-plus'),
@@ -28,17 +95,10 @@ class ListProductos extends ListRecords
     public function updatedScannerCode($value): void
     {
         if (!empty($value) && strlen($value) > 3) {
-            // ✅ LIMPIAR EL SKU: eliminar caracteres no deseados
             $sku = trim($value);
-            
-            // ✅ Eliminar prefijos como : :: > y otros caracteres extra
             $sku = ltrim($sku, ':>');
             $sku = trim($sku);
-            
-            // ✅ Reemplazar acentos y caracteres especiales
             $sku = str_replace(["'", "´", "`", '"', ';'], '-', $sku);
-            
-            // ✅ Eliminar espacios dobles y caracteres no permitidos
             $sku = preg_replace('/[^a-zA-Z0-9\-]/', '', $sku);
             
             $producto = Producto::where('sku', $sku)->first();
@@ -47,7 +107,6 @@ class ListProductos extends ListRecords
                 $this->ejecutarEscaneo($sku);
                 $this->scanner_code = '';
             } else {
-                // ✅ Intentar buscar sin el 0 si tiene
                 if (str_starts_with($sku, '0')) {
                     $skuSinCero = substr($sku, 1);
                     $producto = Producto::where('sku', $skuSinCero)->first();
@@ -70,9 +129,7 @@ class ListProductos extends ListRecords
 
     private function ejecutarEscaneo($sku): void
     {
-        if (empty($sku)) {
-            return;
-        }
+        if (empty($sku)) return;
 
         $producto = Producto::where('sku', $sku)->first();
 
