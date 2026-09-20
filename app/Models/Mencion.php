@@ -6,31 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class GuiaRequerimientoItem extends Model
+class Mencion extends Model
 {
     use HasFactory;
 
-    protected $table = 'guia_requerimiento_items';
+    protected $table = 'mencions';
 
     protected $fillable = [
         'guia_requerimiento_id',
-        'producto_id',
-        'item',
-        'descripcion',
-        'cantidad_solicitada',
-        'unidad_solicitada',
-        'entregado',
-        'cantidad_entregada',
-        'unidad_entregada',
-        'devuelto',
-        'cantidad_devuelta',
-        'unidad_devuelta',
-        'orden',
+        'texto',
+        'activo',
     ];
 
     protected $casts = [
-        'entregado' => 'boolean',
-        'devuelto'  => 'boolean',
+        'activo' => 'boolean',
     ];
 
     // ==========================================
@@ -41,8 +30,11 @@ class GuiaRequerimientoItem extends Model
         return $this->belongsTo(GuiaRequerimiento::class, 'guia_requerimiento_id');
     }
 
-    public function producto(): BelongsTo
+    // ==========================================
+    // SCOPES
+    // ==========================================
+    public function scopeActivas($query)
     {
-        return $this->belongsTo(Producto::class, 'producto_id');
+        return $query->where('activo', true);
     }
 }

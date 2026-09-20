@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GuiaRequerimiento extends Model
 {
@@ -38,16 +39,47 @@ class GuiaRequerimiento extends Model
         'total_paginas'   => 'integer',
     ];
 
-    public function items()
+    // ==========================================
+    // RELACIONES
+    // ==========================================
+
+    public function items(): HasMany
     {
         return $this->hasMany(GuiaRequerimientoItem::class)
                     ->orderBy('orden')
                     ->orderBy('item');
     }
 
-    public function firmas()
+    public function firmas(): HasMany
     {
         return $this->hasMany(GuiaRequerimientoFirma::class);
+    }
+
+    // ✅ NUEVA RELACIÓN: Firmas de ENTREGA (3 tipos)
+    public function firmasEntrega(): HasMany
+    {
+        return $this->hasMany(GuiaRequerimientoFirma::class, 'guia_requerimiento_id')
+                    ->whereIn('tipo', ['atendido_por', 'autorizado_por', 'recibi_conforme']);
+    }
+
+    // ✅ NUEVA RELACIÓN: Firma de DEVOLUCIÓN (1 tipo)
+    public function firmaDevolucion(): HasMany
+    {
+        return $this->hasMany(GuiaRequerimientoFirma::class, 'guia_requerimiento_id')
+                    ->where('tipo', 'recepcion_devolucion');
+    }
+
+    // ✅ MENCIONES (SIN orden)
+    public function menciones(): HasMany
+    {
+        return $this->hasMany(Mencion::class, 'guia_requerimiento_id');
+    }
+
+    // ✅ Solo menciones activas (SIN orden)
+    public function mencionesActivas(): HasMany
+    {
+        return $this->hasMany(Mencion::class, 'guia_requerimiento_id')
+                    ->where('activo', true);
     }
 
     public function user()
@@ -55,7 +87,10 @@ class GuiaRequerimiento extends Model
         return $this->belongsTo(User::class);
     }
 
-    // ✅ Sanitización UTF-8 al hidratar y guardar
+    // ==========================================
+    // SANITIZACIÓN UTF-8
+    // ==========================================
+
     protected static function booted(): void
     {
         static::retrieved(fn ($model) => self::sanitizeAttributes($model));
@@ -70,4 +105,4 @@ class GuiaRequerimiento extends Model
             }
         }
     }
-}
+}   

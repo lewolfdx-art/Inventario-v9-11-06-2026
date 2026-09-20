@@ -110,6 +110,34 @@ class GuiaRequerimientoResource extends Resource
                     Forms\Components\DatePicker::make('fecha_atencion'),
                 ]),
 
+            // ✅ SECCIÓN: MENCIONES / SUBTÍTULOS
+            Forms\Components\Section::make('Menciones / Subtítulos')
+                ->description('Texto que aparecerá entre los datos del proyecto y la tabla de ítems.')
+                ->schema([
+                    Forms\Components\Repeater::make('menciones')
+                        ->relationship()
+                        ->columns(12)
+                        ->defaultItems(0)
+                        ->addActionLabel('Agregar mención')
+                        ->schema([
+                            Forms\Components\Textarea::make('texto')
+                                ->label('Texto de la mención')
+                                ->required()
+                                ->rows(2)
+                                ->maxLength(500)
+                                ->columnSpan(11)
+                                ->placeholder('Ej: Se solicita la siguiente lista de materiales para el proyecto...')
+                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+
+                            Forms\Components\Toggle::make('activo')
+                                ->label('Activo')
+                                ->default(true)
+                                ->inline(false)
+                                ->columnSpan(1),
+                        ]),
+                ]),
+
+            // ✅ ÍTEMS DEL REQUERIMIENTO
             Forms\Components\Section::make('Ítems del Requerimiento')
                 ->schema([
                     Forms\Components\Repeater::make('items')
@@ -119,17 +147,57 @@ class GuiaRequerimientoResource extends Resource
                         ->reorderable('orden')
                         ->addActionLabel('Agregar ítem')
                         ->schema([
+                            Forms\Components\Select::make('producto_id')
+                                ->label('🔍 Buscar herramienta')
+                                ->placeholder('Escribe nombre, SKU o modelo...')
+                                ->searchable()
+                                ->preload()
+                                ->optionsLimit(20)
+                                ->columnSpan(6)
+                                ->getSearchResultsUsing(function (string $search) {
+                                    return \App\Models\Producto::query()
+                                        ->where(function ($q) use ($search) {
+                                            $q->where('nombre', 'like', "%{$search}%")
+                                              ->orWhere('sku', 'like', "%{$search}%")
+                                              ->orWhere('modelo', 'like', "%{$search}%");
+                                        })
+                                        ->limit(20)
+                                        ->get()
+                                        ->mapWithKeys(function ($producto) {
+                                            return [
+                                                $producto->id => "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})"
+                                            ];
+                                        })
+                                        ->toArray();
+                                })
+                                ->getOptionLabelUsing(function ($value) {
+                                    $producto = \App\Models\Producto::find($value);
+                                    return $producto ? "{$producto->sku} - {$producto->nombre} (Stock: {$producto->stock})" : null;
+                                })
+                                ->live()
+                                ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                    if ($state) {
+                                        $producto = \App\Models\Producto::find($state);
+                                        if ($producto) {
+                                            $set('descripcion', $producto->nombre);
+                                        }
+                                    }
+                                }),
+
+                            Forms\Components\TextInput::make('descripcion')
+                                ->label('Descripción')
+                                ->required(fn (Forms\Get $get) => blank($get('producto_id')))
+                                ->maxLength(500)
+                                ->columnSpan(5)
+                                ->disabled(fn (Forms\Get $get) => filled($get('producto_id')))
+                                ->dehydrated()
+                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+
                             Forms\Components\TextInput::make('item')
                                 ->label('N°')
                                 ->numeric()
                                 ->required()
                                 ->columnSpan(1),
-
-                            Forms\Components\TextInput::make('descripcion')
-                                ->required()
-                                ->maxLength(500)
-                                ->columnSpan(5)
-                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
 
                             Forms\Components\TextInput::make('cantidad_solicitada')
                                 ->label('Cant.')
@@ -176,31 +244,97 @@ class GuiaRequerimientoResource extends Resource
                         ]),
                 ]),
 
-            Forms\Components\Section::make('Firmas')
+            // ==========================================
+            // 🤝 FIRMAS DE ENTREGA (3 columnas)
+            // ==========================================
+            Forms\Components\Section::make('🤝 Firmas de Entrega')
+                ->description('Firmas de quienes reciben y autorizan la entrega.')
                 ->schema([
-                    Forms\Components\Repeater::make('firmas')
-                        ->relationship()
-                        ->columns(4)
-                        ->defaultItems(0)
-                        ->addActionLabel('Agregar firma')
+                    Forms\Components\Repeater::make('firmasEntrega')
+                        ->relationship('firmasEntrega')
+                        ->columns(3)
+                        ->defaultItems(3)
+                        ->default([
+                            ['tipo' => 'atendido_por'],
+                            ['tipo' => 'autorizado_por'],
+                            ['tipo' => 'recibi_conforme'],
+                        ])
+                        ->addable(false)
+                        ->deletable(false)
+                        ->reorderable(false)
                         ->schema([
                             Forms\Components\Select::make('tipo')
+                                ->label('Tipo')
                                 ->options([
-                                    'atendido_por'         => 'ATENDIDO POR',
-                                    'autorizado_por'       => 'AUTORIZADO POR',
-                                    'recibi_conforme'      => 'RECIBÍ CONFORME',
-                                    'recepcion_devolucion' => 'RECEPCIÓN - DEVOLUCIÓN',
+                                    'atendido_por'    => 'ATENDIDO POR',
+                                    'autorizado_por'  => 'AUTORIZADO POR',
+                                    'recibi_conforme' => 'RECIBÍ CONFORME',
                                 ])
-                                ->required(),
+                                ->required()
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
 
-                            Forms\Components\DatePicker::make('fecha'),
+                            Forms\Components\DatePicker::make('fecha')
+                                ->label('Fecha')
+                                ->columnSpan(1),
 
                             Forms\Components\TextInput::make('nombre_apellidos')
+                                ->label('Nombre y Apellidos')
                                 ->maxLength(150)
+                                ->columnSpan(1)
                                 ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
 
                             Forms\Components\TextInput::make('dni')
+                                ->label('DNI')
                                 ->maxLength(15)
+                                ->columnSpan(1)
+                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+                        ]),
+                ]),
+
+            // ==========================================
+            // 📦 FIRMA DE DEVOLUCIÓN (1 columna)
+            // ==========================================
+            Forms\Components\Section::make('📦 Firma de Devolución')
+                ->description('Firma de quien recepciona la devolución.')
+                ->schema([
+                    Forms\Components\Repeater::make('firmaDevolucion')
+                        ->relationship('firmaDevolucion')
+                        ->columns(3)
+                        ->defaultItems(1)
+                        ->default([
+                            ['tipo' => 'recepcion_devolucion'],
+                        ])
+                        ->addable(false)
+                        ->deletable(false)
+                        ->reorderable(false)
+                        ->schema([
+                            Forms\Components\Select::make('tipo')
+                                ->label('Tipo')
+                                ->options([
+                                    'recepcion_devolucion' => 'RECEPCIÓN - DEVOLUCIÓN',
+                                ])
+                                ->default('recepcion_devolucion')
+                                ->required()
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
+
+                            Forms\Components\DatePicker::make('fecha')
+                                ->label('Fecha')
+                                ->columnSpan(1),
+
+                            Forms\Components\TextInput::make('nombre_apellidos')
+                                ->label('Nombre y Apellidos')
+                                ->maxLength(150)
+                                ->columnSpan(1)
+                                ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
+
+                            Forms\Components\TextInput::make('dni')
+                                ->label('DNI')
+                                ->maxLength(15)
+                                ->columnSpan(1)
                                 ->dehydrateStateUsing(fn ($state) => static::cleanUtf8($state)),
                         ]),
                 ]),
@@ -262,6 +396,12 @@ class GuiaRequerimientoResource extends Resource
                     ->counts('items')
                     ->badge(),
 
+                Tables\Columns\TextColumn::make('menciones_count')
+                    ->label('Menciones')
+                    ->counts('menciones')
+                    ->badge()
+                    ->color('info'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime('d/m/Y H:i')
@@ -284,7 +424,7 @@ class GuiaRequerimientoResource extends Resource
                     ->color('danger')
                     ->url(fn (GuiaRequerimiento $record) => route('guia-requerimiento.pdf', $record))
                     ->openUrlInNewTab(),
-            
+
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

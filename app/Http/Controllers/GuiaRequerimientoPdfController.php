@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\GuiaRequerimiento;
-use App\Models\Imagen; // ✅ Importar el modelo
+use App\Models\Imagen;
 use Mpdf\Mpdf;
 use Mpdf\Output\Destination;
 
@@ -30,7 +30,8 @@ class GuiaRequerimientoPdfController extends Controller
      */
     protected function generar(GuiaRequerimiento $guia, string $modo = 'inline')
     {
-        $guia->load(['items', 'firmas']);
+        // ✅ Cargar menciones también
+        $guia->load(['items', 'firmas', 'menciones']);
 
         // ✅ Obtener el logo activo
         $logo = Imagen::activas()->tipo('logo')->first();
@@ -45,7 +46,7 @@ class GuiaRequerimientoPdfController extends Controller
 
         $html = view('pdf.guia-requerimiento', [
             'guia' => $guia,
-            'logoUrl' => $logoBase64, // ✅ Pasar el logo en base64
+            'logoUrl' => $logoBase64,
         ])->render();
 
         $mpdf = new Mpdf([
@@ -62,6 +63,9 @@ class GuiaRequerimientoPdfController extends Controller
             'autoScriptToLang' => true,
             'autoLangToFont'   => true,
             'default_font'     => 'dejavusans',
+            
+            // ✅ NUEVO: Desactivar auto-ajuste de tablas
+            'shrink_tables_to_fit' => 0,
         ]);
 
         $mpdf->WriteHTML($html);

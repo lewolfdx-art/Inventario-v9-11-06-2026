@@ -41,7 +41,7 @@ td, th {
 .bold-soft { font-weight: 600; }
 
 /* =========================================
-   ENCABEZADO — AHORA CON ROWSPAN
+   ENCABEZADO
 ========================================= */
 
 .header {
@@ -59,11 +59,10 @@ td, th {
     text-align: center;
 }
 
-/* Columnas del encabezado */
 .col-logo   { width: 22%; }
 .col-title  { width: 48%; }
-.col-info-l { width: 15%; }  /* REVISADO POR, APROBADO POR, CÓDIGO */
-.col-info-r { width: 15%; }  /* Versión, Fecha, PÁGINA */
+.col-info-l { width: 15%; }
+.col-info-r { width: 15%; }
 
 .logo-box {
     text-align: center;
@@ -85,19 +84,18 @@ td, th {
 .title-box {
     text-align: center;
     vertical-align: middle;
-    font-size: 16px;
+    font-size: 8pt;
     font-weight: 600;
     border: 1px solid #333 !important;
 }
 
-/* Celdas de la caja de información — SIN padding extra, pegadas al borde */
 .info-cell {
     text-align: center;
     vertical-align: middle;
     font-size: 6.5px;
     line-height: 1.1;
     padding: 2px 3px !important;
-    border: 1px solid #333 !important;
+    /* ✅ SIN borde — lo hereda de .header td */
 }
 
 /* =========================================
@@ -206,6 +204,27 @@ td, th {
     border-left: none !important;
     border-right: 1px solid #333 !important;
     border-bottom: 1px solid #333 !important;
+}
+
+/* =========================================
+   MENCIONES COMO FILA EN LA TABLA (SIN NÚMERO)
+========================================= */
+
+.mencion-row td.mencion-cell {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 600;
+    font-size: 7px;
+    text-align: left;
+    padding: 2px 2px;
+    border: 1px solid #333 !important;
+    line-height: 1.15;
+}
+
+.mencion-row td.mencion-cell-vacia {
+    background: #ffffff !important;
+    border: 1px solid #333 !important;
+    height: 17px;
 }
 
 /* =========================================
@@ -349,9 +368,8 @@ td, th {
         }
     @endphp
 
-    <!-- ============ ENCABEZADO (SIN TABLA ANIDADA) ============ -->
+    <!-- ============ ENCABEZADO ============ -->
     <table class="header">
-        <!-- Fila 1 -->
         <tr>
             <td class="logo-box col-logo" rowspan="3">
                 @if ($logoBase64)
@@ -360,16 +378,16 @@ td, th {
                     <span style="font-size:14px;color:#48628c;font-weight:400;">O&T</span>
                 @endif
             </td>
-            <td class="title-box col-title" rowspan="3">REQUERIMIENTO</td>
+            <td class="title-box col-title" rowspan="3">
+                <span style="font-size: 8pt; font-weight: 600;">REQUERIMIENTO</span>
+            </td>
             <td class="info-cell col-info-l">REVISADO POR:<br>JEFE SIG</td>
             <td class="info-cell col-info-r">Versión:<br><b>{{ $guia->version }}</b></td>
         </tr>
-        <!-- Fila 2 -->
         <tr>
             <td class="info-cell col-info-l">APROBADO POR:<br>GG</td>
             <td class="info-cell col-info-r">Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
         </tr>
-        <!-- Fila 3 -->
         <tr>
             <td class="info-cell col-info-l">CÓDIGO:<br>{{ $guia->codigo }}</td>
             <td class="info-cell col-info-r">PÁGINA:<br>{{ $guia->pagina }} DE {{ $guia->total_paginas }}</td>
@@ -443,16 +461,33 @@ td, th {
             <th class="col-und-devoluc devolucion bold-soft">UND.<br>MED.</th>
         </tr>
 
+        @if($guia->menciones->where('activo', true)->count() > 0)
+            @foreach($guia->menciones->where('activo', true)->sortBy('orden') as $mencion)
+                <tr class="mencion-row">
+                    <td class="item-col mencion-cell-vacia"></td>
+                    <td class="mencion-cell">{{ $mencion->texto }}</td>
+                    <td class="cant-col mencion-cell-vacia"></td>
+                    <td class="unit-col mencion-cell-vacia"></td>
+                    <td class="col-entregado mencion-cell-vacia"></td>
+                    <td class="col-cant-entregad mencion-cell-vacia"></td>
+                    <td class="col-und-entregad mencion-cell-vacia"></td>
+                    <td class="col-devolucion mencion-cell-vacia"></td>
+                    <td class="col-cant-devoluc mencion-cell-vacia"></td>
+                    <td class="col-und-devoluc mencion-cell-vacia"></td>
+                </tr>
+            @endforeach
+        @endif
+
         @forelse ($guia->items as $item)
             <tr>
                 <td class="item-col">{{ $item->item }}</td>
                 <td>{{ $item->descripcion }}</td>
                 <td class="cant-col">{{ $item->cantidad_solicitada }}</td>
                 <td class="unit-col">{{ $item->unidad_solicitada }}</td>
-                <td class="col-entregado center">{{ $item->entregado ? 'X' : '' }}</td>
+                <td class="col-entregado center">{{ $item->entregado ? '✓' : '' }}</td>
                 <td class="col-cant-entregad center">{{ $item->cantidad_entregada }}</td>
                 <td class="col-und-entregad center">{{ $item->unidad_entregada }}</td>
-                <td class="col-devolucion center">{{ $item->devuelto ? 'X' : '' }}</td>
+                <td class="col-devolucion center">{{ $item->devuelto ? '○ ' : '' }}</td>
                 <td class="col-cant-devoluc center">{{ $item->cantidad_devuelta }}</td>
                 <td class="col-und-devoluc center">{{ $item->unidad_devuelta }}</td>
             </tr>
@@ -491,7 +526,10 @@ td, th {
                     </tr>
                     <tr>
                         <td class="signature-label bold-soft">FECHA</td>
-                        <td></td><td></td><td></td>
+                        @foreach (['atendido_por', 'autorizado_por', 'recibi_conforme'] as $tipo)
+                            @php $firma = $guia->firmas->firstWhere('tipo', $tipo); @endphp
+                            <td>{{ $firma?->fecha?->format('d/m/Y') ?? '' }}</td>
+                        @endforeach
                     </tr>
                     <tr>
                         <td class="signature-label bold-soft">NOMBRE Y APELLIDOS</td>
