@@ -13,23 +13,23 @@
                     <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ $totales['total'] }}</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-l-4 border-gray-400 shadow-sm">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">📝 Borrador</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Borrador</div>
                     <div class="text-2xl font-bold text-gray-600 dark:text-gray-400">{{ $totales['borrador'] }}</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-l-4 border-yellow-500 shadow-sm">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">⏳ Pendiente</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Pendiente</div>
                     <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ $totales['pendiente'] }}</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-l-4 border-blue-500 shadow-sm">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">✅ Aprobado</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Aprobado</div>
                     <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ $totales['aprobado'] }}</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-l-4 border-green-500 shadow-sm">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">📤 Entregado</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Entregado</div>
                     <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ $totales['entregado'] }}</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border-l-4 border-red-500 shadow-sm">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">📥 Devuelto</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Devuelto</div>
                     <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ $totales['devuelto'] }}</div>
                 </div>
             </div>
@@ -57,14 +57,6 @@
                             'devuelto' => 'danger',
                             default => 'gray',
                         };
-                        $iconoEstado = match($guia->estado) {
-                            'borrador' => '📝',
-                            'pendiente' => '⏳',
-                            'aprobado' => '✅',
-                            'entregado' => '📤',
-                            'devuelto' => '📥',
-                            default => '📄',
-                        };
                     @endphp
 
                     <div class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
@@ -72,7 +64,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-{{ $colorEstado }}-100 text-{{ $colorEstado }}-800 dark:bg-{{ $colorEstado }}-900 dark:text-{{ $colorEstado }}-300">
-                                        {{ $iconoEstado }} {{ ucfirst($guia->estado) }}
+                                        {{ ucfirst($guia->estado) }}
                                     </span>
                                     <span class="font-mono text-xs font-bold text-gray-700 dark:text-gray-300">
                                         {{ $guia->codigo }}
@@ -83,21 +75,15 @@
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     👤 {{ $guia->responsable_solicitante ?? 'N/A' }}
-                                    @if($guia->centro_costos)
-                                        · 📍 {{ $guia->centro_costos }}
-                                    @endif
                                 </div>
                             </div>
                             <div class="text-right flex-shrink-0">
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                     🕐 {{ $guia->updated_at?->format('d/m/Y H:i') }}
                                 </div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    📦 {{ $guia->items()->count() }} ítems
-                                </div>
                                 <a href="/admin/guia-requerimientos/{{ $guia->id }}/edit"
                                    class="inline-block mt-1 text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                                    ✏️ Editar
+                                    Editar
                                 </a>
                             </div>
                         </div>
