@@ -35,10 +35,13 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/login-logo.png'))
             ->brandLogoHeight('3rem')
             
-            // ✅ COLOR AMARILLO
             ->colors([
                 'primary' => Color::Yellow,
             ])
+            
+            // ✅ HABILITAR NOTIFICACIONES EN LA BASE DE DATOS
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -71,14 +74,10 @@ class AdminPanelProvider extends PanelProvider
             
             // ✅ ORDEN DE LOS GRUPOS DE NAVEGACIÓN
             ->navigationGroups([
-                'Supervisión',                  // ← PRIMERO
-                'Configuración',                // ← Segundo
-                'Gestión de Inventario',        // ← Tercero
-                'Catalogo de Herramientas',     // ← Cuarto
-                'Gestion de Maletines',         // ← Sexto
-                'Guías',                        // ← Quinto
-
-                
+                'Supervisión',
+                'Guías',
+                'Catalogo de Herramientas',
+                'Configuración',
             ])
             
             ->bootUsing(function () {

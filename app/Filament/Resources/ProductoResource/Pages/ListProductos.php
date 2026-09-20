@@ -10,7 +10,7 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
 use Illuminate\Support\HtmlString;
-
+use Illuminate\Support\Facades\Artisan;
 class ListProductos extends ListRecords
 {
     protected static string $resource = ProductoResource::class;
@@ -21,6 +21,34 @@ class ListProductos extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // ✅ BOTÓN: Refrescar Alertas
+            Action::make('refrescar_alertas')
+                ->label('🔄 Refrescar Alertas')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('🔄 Refrescar Alertas')
+                ->modalDescription('Se ejecutará el análisis de stock y recalibraciones, y se enviarán notificaciones a los usuarios correspondientes.')
+                ->modalSubmitActionLabel('Sí, refrescar')
+                ->action(function () {
+                    try {
+                        Artisan::call('notificar:alertas');
+
+                        Notification::make()
+                            ->title('✅ Alertas actualizadas')
+                            ->body('Las notificaciones se han regenerado correctamente.')
+                            ->success()
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('❌ Error al refrescar')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+
             // ✅ SWITCH PARA VER PRODUCTOS SIN STOCK
             Action::make('verSinStock')
                 ->label('🔴 Ver productos sin stock')
