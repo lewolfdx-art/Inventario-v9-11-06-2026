@@ -41,24 +41,35 @@ td, th {
 .bold-soft { font-weight: 600; }
 
 /* =========================================
-   ENCABEZADO — SÍ LLEVA BORDES
+   ENCABEZADO — AHORA CON ROWSPAN
 ========================================= */
 
-.header { width: 100%; }
+.header {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
 
 .header td {
     border: 1px solid #333 !important;
-    height: 1px;
-    padding: 1px 4px;
     vertical-align: middle;
-    overflow: hidden;
+    padding: 2px 4px;
+    font-size: 6.5px;
+    line-height: 1.15;
+    text-align: center;
 }
 
+/* Columnas del encabezado */
+.col-logo   { width: 22%; }
+.col-title  { width: 48%; }
+.col-info-l { width: 15%; }  /* REVISADO POR, APROBADO POR, CÓDIGO */
+.col-info-r { width: 15%; }  /* Versión, Fecha, PÁGINA */
+
 .logo-box {
-    width: 22%;
     text-align: center;
     vertical-align: middle;
     padding: 1mm 1mm;
+    border: 1px solid #333 !important;
 }
 
 .logo-box img {
@@ -72,37 +83,22 @@ td, th {
 }
 
 .title-box {
-    width: 50%;
-    height: 25px;
     text-align: center;
     vertical-align: middle;
     font-size: 16px;
     font-weight: 600;
+    border: 1px solid #333 !important;
 }
 
-.info-box {
-    width: 20%;
-    padding: 0 !important;
-    vertical-align: top;
-}
-
-.info-box table {
-    height: 45px;
-    border: none;
-}
-
-.info-box table td {
-    border: 0.5px solid #999 !important;
-    padding: 2px 3px;
+/* Celdas de la caja de información — SIN padding extra, pegadas al borde */
+.info-cell {
     text-align: center;
     vertical-align: middle;
-    font-size: 7px;
+    font-size: 6.5px;
+    line-height: 1.1;
+    padding: 2px 3px !important;
+    border: 1px solid #333 !important;
 }
-
-.info-box table tr:first-child td { border-top: none !important; }
-.info-box table tr:last-child td  { border-bottom: none !important; }
-.info-box table td:first-child    { border-left: none !important; }
-.info-box table td:last-child     { border-right: none !important; }
 
 /* =========================================
    DATOS DEL PROYECTO
@@ -323,9 +319,7 @@ td, th {
 
 <div class="page">
 
-    {{-- ✅ LOGO DESDE EL RESOURCE DE IMÁGENES --}}
     @php
-        // 1. Intentar obtener el logo desde la base de datos
         $logoImagen = \App\Models\Imagen::activas()->tipo('logo')->first();
         $logoBase64 = '';
         
@@ -337,7 +331,6 @@ td, th {
             }
         }
         
-        // 2. Fallback: buscar en public/images/ si no hay en BD
         if (empty($logoBase64)) {
             $posiblesLogos = [
                 'images/logo.png',
@@ -356,36 +349,30 @@ td, th {
         }
     @endphp
 
-    <!-- ============ ENCABEZADO ============ -->
+    <!-- ============ ENCABEZADO (SIN TABLA ANIDADA) ============ -->
     <table class="header">
+        <!-- Fila 1 -->
         <tr>
-            <td class="logo-box">
+            <td class="logo-box col-logo" rowspan="3">
                 @if ($logoBase64)
-                <img src="{{ $logoBase64 }}" alt="O&T" style="width: 25mm; height: auto; max-height: 12mm;">
-
+                    <img src="{{ $logoBase64 }}" alt="O&T" style="width: 25mm; height: auto; max-height: 12mm;">
                 @else
                     <span style="font-size:14px;color:#48628c;font-weight:400;">O&T</span>
                 @endif
             </td>
-
-            <td class="title-box">REQUERIMIENTO</td>
-
-            <td class="info-box">
-                <table>
-                    <tr>
-                        <td class="center">REVISADO POR:<br>JEFE SIG</td>
-                        <td>Versión:<br><b>{{ $guia->version }}</b></td>
-                    </tr>
-                    <tr>
-                        <td class="center">APROBADO POR:<br>GG</td>
-                        <td>Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="center">CÓDIGO:<br>{{ $guia->codigo }}</td>
-                        <td>PÁGINA:<br>{{ $guia->pagina }} DE {{ $guia->total_paginas }}</td>
-                    </tr>
-                </table>
-            </td>
+            <td class="title-box col-title" rowspan="3">REQUERIMIENTO</td>
+            <td class="info-cell col-info-l">REVISADO POR:<br>JEFE SIG</td>
+            <td class="info-cell col-info-r">Versión:<br><b>{{ $guia->version }}</b></td>
+        </tr>
+        <!-- Fila 2 -->
+        <tr>
+            <td class="info-cell col-info-l">APROBADO POR:<br>GG</td>
+            <td class="info-cell col-info-r">Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
+        </tr>
+        <!-- Fila 3 -->
+        <tr>
+            <td class="info-cell col-info-l">CÓDIGO:<br>{{ $guia->codigo }}</td>
+            <td class="info-cell col-info-r">PÁGINA:<br>{{ $guia->pagina }} DE {{ $guia->total_paginas }}</td>
         </tr>
     </table>
 
@@ -393,66 +380,56 @@ td, th {
     <table class="project-info-table">
         <tr>
             <td class="project-left-cell">
-
                 <table class="field-row">
                     <tr>
                         <td class="field-label" style="width:42%;">NOMBRE DEL PROYECTO / SERVICIO / ÁREA:</td>
                         <td class="field-value">{{ $guia->nombre_proyecto }}</td>
                     </tr>
                 </table>
-
                 <table class="field-row" style="margin-top:12px;">
                     <tr>
                         <td class="field-label" style="width:42%;"></td>
                         <td class="field-value">&nbsp;</td>
                     </tr>
                 </table>
-
                 <table class="field-row">
                     <tr>
                         <td class="field-label" style="width:42%;">RESPONSABLE SOLICITANTE:</td>
                         <td class="field-value">{{ $guia->responsable_solicitante }}</td>
                     </tr>
                 </table>
-
             </td>
 
             <td class="project-right-cell">
-
                 <table class="field-row right">
                     <tr>
                         <td class="field-label">FECHA DE PEDIDO:</td>
                         <td class="field-value">{{ $guia->fecha_pedido?->format('d/m/Y') }}</td>
                     </tr>
                 </table>
-
                 <table class="field-row right">
                     <tr>
                         <td class="field-label">CENTRO DE COSTOS:</td>
                         <td class="field-value">{{ $guia->centro_costos }}</td>
                     </tr>
                 </table>
-
                 <table class="field-row right">
                     <tr>
                         <td class="field-label">FECHA DE ATENCIÓN:</td>
                         <td class="field-value">{{ $guia->fecha_atencion?->format('d/m/Y') }}</td>
                     </tr>
                 </table>
-
             </td>
         </tr>
     </table>
 
     <!-- ============ TABLA PRINCIPAL ============ -->
     <table class="main-table">
-
         <tr>
             <th colspan="4" class="gris bold-soft">SOLICITADO</th>
             <th colspan="3" class="entregado bold-soft">ENTREGADO</th>
             <th colspan="3" class="devolucion bold-soft">DEVOLUCIÓN</th>
         </tr>
-
         <tr>
             <th class="item-col gris bold-soft">ITEM</th>
             <th class="desc-col gris bold-soft">DESCRIPCIÓN</th>
@@ -495,7 +472,6 @@ td, th {
                 <td class="col-und-devoluc"></td>
             </tr>
         @endfor
-
     </table>
 
     <!-- ============ FIRMAS ============ -->
