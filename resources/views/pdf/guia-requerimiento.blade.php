@@ -381,13 +381,13 @@ td, th {
             <td class="title-box col-title" rowspan="3">
                 <span style="font-size: 8pt; font-weight: 600;">REQUERIMIENTO</span>
             </td>
-            <td class="info-cell col-info-l">REVISADO POR:<br>JEFE SIG</td>
+            <td class="info-cell col-info-l">REVISADO POR:<br>{{ $guia->revisado_por ?? 'JEFE SIG' }}</td>
             <td class="info-cell col-info-r">Versión:<br><b>{{ $guia->version }}</b></td>
-        </tr>
-        <tr>
-            <td class="info-cell col-info-l">APROBADO POR:<br>Gerente General</td>
-            <td class="info-cell col-info-r">Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
-        </tr>
+            </tr>
+            <tr>
+                <td class="info-cell col-info-l">APROBADO POR:<br>{{ $guia->aprobado_por ?? 'Gerente General' }}</td>
+                <td class="info-cell col-info-r">Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
+            </tr>
         <tr>
             <td class="info-cell col-info-l">CÓDIGO:<br>{{ $guia->codigo }}</td>
             <td class="info-cell col-info-r">PÁGINA:<br>{{ $guia->pagina }} DE {{ $guia->total_paginas }}</td>
