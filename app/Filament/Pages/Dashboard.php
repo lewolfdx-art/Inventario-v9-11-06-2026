@@ -5,7 +5,7 @@ namespace App\Filament\Pages;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Artisan;  // ✅ NUEVO
+use Illuminate\Support\Facades\Artisan;
 
 class Dashboard extends BaseDashboard
 {
@@ -18,6 +18,14 @@ class Dashboard extends BaseDashboard
     protected function getHeaderActions(): array
     {
         return [
+            // ✅ BOTÓN: IR AL ESCÁNER (misma ventana)
+            Action::make('ir_escaner')
+                ->label('📷 Inicio de Escaneo')
+                ->icon('heroicon-o-qr-code')
+                ->color('success')
+                ->url('/escanear'),  // ← Sin shouldOpenInNewTab
+
+            // ✅ BOTÓN: REFRESCAR ALERTAS
             Action::make('refrescar_alertas')
                 ->label('🔄 Refrescar Alertas')
                 ->icon('heroicon-o-arrow-path')
@@ -28,7 +36,7 @@ class Dashboard extends BaseDashboard
                 ->modalSubmitActionLabel('Sí, refrescar')
                 ->action(function () {
                     try {
-                        Artisan::call('notificar:alertas');  // ✅ Sin backslash
+                        Artisan::call('notificar:alertas');
 
                         Notification::make()
                             ->title('✅ Alertas actualizadas')
