@@ -447,7 +447,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="logo">📋 SISTEMA DE INVENTARIO</div>
+        <div class="logo">🛠️ SISTEMA DE INVENTARIO</div>
         <p class="subtitle">Escanea el código de barras para registrar movimientos</p>
 
         <div class="scanner-box" id="scannerBox">

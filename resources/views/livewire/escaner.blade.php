@@ -3,7 +3,7 @@
         <!-- HEADER CON LOGIN/LOGOUT -->
         <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
             <div>
-                <h1 class="text-3xl font-bold">📋 SISTEMA DE INVENTARIO</h1>
+                <h1 class="text-3xl font-bold">🛠️ SISTEMA DE INVENTARIO</h1>
                 <p class="text-gray-600 text-sm">Escanea el código de barras para registrar movimientos</p>
             </div>
             
@@ -36,7 +36,9 @@
         </div>
         
         <!-- Tarjeta principal -->
-        <div class="bg-white rounded-lg shadow-xl p-8 border border-gray-200">
+        <div class="rounded-lg shadow-xl p-8 border-2 border-blue-400" 
+     style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15), 0 4px 20px rgba(251, 191, 36, 0.1);">
             <div class="text-center">
                 <div class="text-lg font-semibold text-gray-700 mb-4">𝄃𝄂𝄀𝄁𝄃𝄂𝄂𝄃 Escanea el código de barras</div>
                 
