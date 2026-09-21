@@ -77,6 +77,7 @@ class AdminPanelProvider extends PanelProvider
                 'Supervisión',
                 'Guías',
                 'Catalogo de Herramientas',
+                'Gestion de Maletines',
                 'Configuración',
             ])
             

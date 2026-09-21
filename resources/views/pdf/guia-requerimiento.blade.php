@@ -385,7 +385,7 @@ td, th {
             <td class="info-cell col-info-r">Versión:<br><b>{{ $guia->version }}</b></td>
         </tr>
         <tr>
-            <td class="info-cell col-info-l">APROBADO POR:<br>GG</td>
+            <td class="info-cell col-info-l">APROBADO POR:<br>Gerente General</td>
             <td class="info-cell col-info-r">Fecha:<br>{{ $guia->fecha_documento?->format('d/m/Y') }}</td>
         </tr>
         <tr>
