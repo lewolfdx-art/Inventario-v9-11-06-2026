@@ -38,7 +38,7 @@
         <!-- Tarjeta principal -->
         <div class="bg-white rounded-lg shadow-xl p-8 border border-gray-200">
             <div class="text-center">
-                <div class="text-lg font-semibold text-gray-700 mb-4">📷 Escanea el código de barras</div>
+                <div class="text-lg font-semibold text-gray-700 mb-4">𝄃𝄂𝄀𝄁𝄃𝄂𝄂𝄃 Escanea el código de barras</div>
                 
                 <!-- Input de escaneo -->
                 <div class="my-4">

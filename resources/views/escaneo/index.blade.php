@@ -451,7 +451,7 @@
         <p class="subtitle">Escanea el código de barras para registrar movimientos</p>
 
         <div class="scanner-box" id="scannerBox">
-            <span class="icon">📷</span>
+            <span class="icon">𝄃𝄂𝄀𝄁𝄃𝄂𝄂𝄃</span>
             <p>Escanea el código de barras</p>
             <input type="text" id="scannerInput" placeholder="Código de barras..." autofocus>
 
