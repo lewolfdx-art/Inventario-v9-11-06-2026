@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateNaturaleza extends CreateRecord
 {
     protected static string $resource = NaturalezaResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

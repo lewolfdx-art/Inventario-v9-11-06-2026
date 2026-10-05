@@ -1,22 +1,16 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up()
     {
-        Schema::table('maletins', function (Blueprint $table) {
-            $table->string('nombre')->nullable()->after('id');
-        });
+        // Columna ya creada en 2026_07_03_112011_create_maletins_table.php
     }
 
     public function down()
     {
-        Schema::table('maletins', function (Blueprint $table) {
-            $table->dropColumn('nombre');
-        });
+        //
     }
 };

@@ -8,4 +8,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateRequerimientoCalibracion extends CreateRecord
 {
     protected static string $resource = RequerimientoCalibracionResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

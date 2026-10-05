@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateRequerimientoSerie extends CreateRecord
 {
     protected static string $resource = RequerimientoSerieResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }
