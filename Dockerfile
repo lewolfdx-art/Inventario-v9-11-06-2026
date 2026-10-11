@@ -27,4 +27,10 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Entrypoint: storage:link + migraciones + limpieza de cachés al arrancar
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 80
+
+CMD ["/usr/local/bin/entrypoint.sh"]

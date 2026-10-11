@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ProductosImport;
@@ -198,6 +199,39 @@ class ProductoResource extends Resource
                             ->placeholder('Ingrese observaciones adicionales...'),
                     ]),
 
+                Forms\Components\Section::make('Calibración y Mantenimiento')
+                    ->description('Fechas del último servicio, ubicación actual y frecuencia de mantenimiento.')
+                    ->schema([
+                        Forms\Components\DatePicker::make('fecha_ultima_calibracion')
+                            ->label('Última calibración')
+                            ->native(false)
+                            ->maxDate(now()),
+
+                        Forms\Components\DatePicker::make('fecha_ultimo_mantenimiento')
+                            ->label('Último mantenimiento')
+                            ->native(false)
+                            ->maxDate(now()),
+
+                        Forms\Components\Select::make('ubicacion')
+                            ->label('Ubicación')
+                            ->options([
+                                'almacen'   => 'Almacén',
+                                'alquilado' => 'Alquilado',
+                                'campo'     => 'Campo',
+                            ])
+                            ->default('almacen')
+                            ->required(),
+
+                        Forms\Components\Select::make('frecuencia_mantenimiento')
+                            ->label('Frecuencia de mantenimiento')
+                            ->options([
+                                '1_anio'          => 'Cada 1 año',
+                                '2_anios'         => 'Cada 2 años',
+                                'vida_util_unica' => 'Vida útil única (si se daña, se compra uno nuevo)',
+                            ])
+                            ->placeholder('Sin definir'),
+                    ])
+                    ->columns(2),
                 // ✅ SECCIÓN DE RECALIBRACIONES
                 Forms\Components\Section::make('Historial de Recalibraciones')
                     ->description('Registra cada recalibración realizada al producto. El sistema mostrará alertas cuando se acerque la próxima fecha.')
@@ -272,7 +306,7 @@ class ProductoResource extends Resource
                                     return 'No hay cambios registrados para este producto.';
                                 }
 
-                                $html = '<div class="space-y-4 max-h-[400px] overflow-y-auto p-2">';
+                                $html = '<div class="space-y-4 p-2" style="max-height: 400px; overflow-y: auto; scrollbar-width: thin;">';
                                 foreach ($logs as $log) {
                                     $user = $log->causer ? $log->causer->name : 'Sistema';
                                     $date = $log->created_at->format('d/m/Y H:i:s');
@@ -423,6 +457,11 @@ class ProductoResource extends Resource
                                 'serie' => 'Serie',
                                 'año_fabricacion' => 'Año Fabricación',
                                 'stock' => 'Stock',
+                                'ubicacion' => 'Ubicación',
+                                'frecuencia_mantenimiento' => 'Frecuencia Mantenimiento',
+                                'fecha_ultima_calibracion' => 'Última Calibración',
+                                'fecha_ultimo_mantenimiento' => 'Último Mantenimiento',
+                                'vigencia' => 'Vigencia',
                                 'categoria' => 'Categoría',
                                 'subcategoria' => 'Subcategoría',
                                 'marca' => 'Marca',
@@ -460,6 +499,11 @@ class ProductoResource extends Resource
                                 'serie' => 'Serie',
                                 'año_fabricacion' => 'Año Fabricación',
                                 'stock' => 'Stock',
+                                'ubicacion' => 'Ubicación',
+                                'frecuencia_mantenimiento' => 'Frecuencia Mantenimiento',
+                                'fecha_ultima_calibracion' => 'Última Calibración',
+                                'fecha_ultimo_mantenimiento' => 'Último Mantenimiento',
+                                'vigencia' => 'Vigencia',
                                 'categoria' => 'Categoría',
                                 'marca' => 'Marca',
                                 'estado' => 'Estado',
@@ -488,7 +532,7 @@ class ProductoResource extends Resource
                     ->color('gray')
                     ->modalHeading('Historial de Cambios - Productos')
                     ->modalContent(function () {
-                        $logs = \Spatie\Activitylog\Models\Activity::where('log_name', 'producto')
+                        $logs = \Spatie\Activitylog\Models\Activity::where('subject_type', Producto::class)
                             ->with('causer')
                             ->latest()
                             ->limit(100)
@@ -498,7 +542,7 @@ class ProductoResource extends Resource
                             return new HtmlString('<div class="text-center text-gray-500 p-8">No hay registros de actividad.</div>');
                         }
 
-                        $html = '<div class="space-y-3 max-h-[70vh] overflow-y-auto p-2">';
+                        $html = '<div class="space-y-3 p-2" style="max-height: 70vh; overflow-y: auto; scrollbar-width: thin;">';
                         foreach ($logs as $log) {
                             $user = $log->causer ? $log->causer->name : 'Sistema';
                             $date = $log->created_at->format('d/m/Y H:i:s');
@@ -805,6 +849,64 @@ class ProductoResource extends Resource
                     ->color(fn($record) => $record->proxima_recalibracion_color)
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                Tables\Columns\TextColumn::make('ubicacion')
+                    ->label('Ubicación')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'almacen'   => 'Almacén',
+                        'alquilado' => 'Alquilado',
+                        'campo'     => 'Campo',
+                        default     => '—',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'almacen'   => 'success',
+                        'alquilado' => 'warning',
+                        'campo'     => 'info',
+                        default     => 'gray',
+                    })
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                Tables\Columns\TextColumn::make('fecha_ultima_calibracion')
+                    ->label('Últ. calibración')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                Tables\Columns\TextColumn::make('fecha_ultimo_mantenimiento')
+                    ->label('Últ. mantenimiento')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                Tables\Columns\TextColumn::make('frecuencia_mantenimiento')
+                    ->label('Frecuencia')
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        '1_anio'          => 'Cada 1 año',
+                        '2_anios'         => 'Cada 2 años',
+                        'vida_util_unica' => 'Vida útil única',
+                        default           => '—',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                Tables\Columns\TextColumn::make('vigencia_mantenimiento')
+                    ->label('Vigencia')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'vigente'     => 'Vigente',
+                        'vencido'     => 'Vencido',
+                        'no_aplica'   => 'No aplica',
+                        'sin_definir' => 'Sin definir',
+                        default       => 'Sin fecha',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'vigente' => 'success',
+                        'vencido' => 'danger',
+                        default   => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: false),
                 // ✅ FECHA CREACIÓN
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
@@ -914,6 +1016,23 @@ class ProductoResource extends Resource
                     ->searchable()
                     ->preload(),
 
+                Tables\Filters\SelectFilter::make('ubicacion')
+                    ->label('Ubicación')
+                    ->options([
+                        'almacen'   => 'Almacén',
+                        'alquilado' => 'Alquilado',
+                        'campo'     => 'Campo',
+                    ])
+                    ->multiple(),
+
+                Tables\Filters\SelectFilter::make('frecuencia_mantenimiento')
+                    ->label('Frecuencia de mantenimiento')
+                    ->options([
+                        '1_anio'          => 'Cada 1 año',
+                        '2_anios'         => 'Cada 2 años',
+                        'vida_util_unica' => 'Vida útil única',
+                    ])
+                    ->multiple(),
                 Tables\Filters\Filter::make('created_at')
                     ->label('Fecha de creación')
                     ->form([
@@ -938,7 +1057,8 @@ class ProductoResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
 
-                // ==================== ✅ ACCIONES CON FOTOS ====================
+                // ==================== ✅ ACCIONES DE MOVIMIENTO (AGRUPADAS) ====================
+                Tables\Actions\ActionGroup::make([
 
                 // 📥 FOTOENT - Entrada con Fotos
                 Tables\Actions\Action::make('fotoent')
@@ -1244,6 +1364,8 @@ class ProductoResource extends Resource
                             ->send();
                     }),
 
+                ])->label('Movimientos')->icon('heroicon-o-arrows-right-left')->tooltip('Entradas/Salidas con o sin fotos'),
+
                 // ==================== ✅ SHOW FOTOS CON SCROLL ====================
                 Tables\Actions\Action::make('show_fotos')
                 ->label('📸 Show Fotos')
@@ -1267,7 +1389,7 @@ class ProductoResource extends Resource
                     $totalMovimientos = $movimientosAgrupados->count();
 
                     // ✅ SCROLL EN EL MODAL
-                    $html = '<div class="space-y-6 max-h-[75vh] overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">';
+                    $html = '<div class="space-y-6 p-2" style="max-height: 75vh; overflow-y: auto; scrollbar-width: thin;">';
 
                     foreach ($movimientosAgrupados as $movimientoId => $fotosDelMovimiento) {
                         $movimiento = $fotosDelMovimiento->first()->movimiento;
@@ -1417,6 +1539,9 @@ class ProductoResource extends Resource
                         }),
                 ]),
 
+                // ==================== ✅ ACCIONES DE IMPRESIÓN (AGRUPADAS) ====================
+                Tables\Actions\ActionGroup::make([
+
                 // Imprimir Etiqueta
                 Tables\Actions\Action::make('imprimir_etiqueta')
                     ->label('Imprimir Etiqueta')
@@ -1520,6 +1645,8 @@ class ProductoResource extends Resource
                         </div>
                     ');
                 }),
+
+                ])->label('Imprimir')->icon('heroicon-o-printer')->tooltip('Impresión de etiquetas'),
             ])
 
             ->bulkActions([
@@ -1543,6 +1670,11 @@ class ProductoResource extends Resource
                                     'serie' => 'Serie',
                                     'año_fabricacion' => 'Año Fabricación',
                                     'stock' => 'Stock',
+                                    'ubicacion' => 'Ubicación',
+                                    'frecuencia_mantenimiento' => 'Frecuencia Mantenimiento',
+                                    'fecha_ultima_calibracion' => 'Última Calibración',
+                                    'fecha_ultimo_mantenimiento' => 'Último Mantenimiento',
+                                    'vigencia' => 'Vigencia',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
@@ -1579,6 +1711,11 @@ class ProductoResource extends Resource
                                     'serie' => 'Serie',
                                     'año_fabricacion' => 'Año Fabricación',
                                     'stock' => 'Stock',
+                                    'ubicacion' => 'Ubicación',
+                                    'frecuencia_mantenimiento' => 'Frecuencia Mantenimiento',
+                                    'fecha_ultima_calibracion' => 'Última Calibración',
+                                    'fecha_ultimo_mantenimiento' => 'Último Mantenimiento',
+                                    'vigencia' => 'Vigencia',
                                     'categoria' => 'Categoría',
                                     'subcategoria' => 'Subcategoría',
                                     'marca' => 'Marca',
@@ -1640,8 +1777,8 @@ class ProductoResource extends Resource
                 <img
                     src="{$imageUrl}"
                     alt="{$nombre}"
-                    class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-xl"
-                    style="border: 2px solid #e5e7eb;"
+                    class="max-w-full object-contain rounded-lg shadow-xl"
+                    style="border: 2px solid #e5e7eb; max-height: 80vh;"
                 />
             </div>
         HTML);

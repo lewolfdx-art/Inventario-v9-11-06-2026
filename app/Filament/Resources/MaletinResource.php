@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\Log;
@@ -55,6 +56,44 @@ class MaletinResource extends Resource
                         ->default('activo')
                         ->required()
                         ->columnSpan(2),
+                    
+                    // ⏬ FECHA DE DEVOLUCIÓN (se llena automáticamente al importar desde Excel)
+                    Forms\Components\DatePicker::make('fecha_devolucion')
+                        ->label('Fecha de Devolucion')
+                        ->native(false)
+                        ->helperText('Se completa automáticamente al importar el checklist de devolucion')
+                        ->columnSpan(2),
+                    
+                    Forms\Components\DatePicker::make('fecha_atencion')
+                        ->label('Fecha de Atencion')
+                        ->native(false)
+                        ->helperText('Se completa automáticamente al importar el checklist')
+                        ->columnSpan(2),
+                    
+                    // ⏬ CUADRO DE REVISIÓN (encabezado del checklist)
+                    Forms\Components\TextInput::make('revisado_por')
+                        ->label('Revisado')
+                        ->default('RED')
+                        ->placeholder('Ej. RED')
+                        ->columnSpan(1),
+                    
+                    Forms\Components\TextInput::make('version')
+                        ->label('Version')
+                        ->default('00')
+                        ->placeholder('Ej. 00')
+                        ->columnSpan(1),
+                    
+                    Forms\Components\TextInput::make('aprobado_por')
+                        ->label('Aprobado')
+                        ->default('GG')
+                        ->placeholder('Ej. GG')
+                        ->columnSpan(1),
+                    
+                    Forms\Components\TextInput::make('fecha_documento')
+                        ->label('Fecha del Documento')
+                        ->default('01/07/14')
+                        ->placeholder('Ej. 01/07/14')
+                        ->columnSpan(1),
                     
                     Forms\Components\Select::make('producto_id')
                         ->label('Asociar a Producto (Manual)')
@@ -103,8 +142,18 @@ class MaletinResource extends Resource
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
+                                
+                                Forms\Components\Select::make('estado_devolucion')
+                                    ->label('Estado Devol.')
+                                    ->options([
+                                        'ok' => 'OK',
+                                        'falta' => 'Falta',
+                                        'danado' => 'Daniado',
+                                    ])
+                                    ->default('ok')
+                                    ->columnSpan(1),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->columnSpanFull()
                             ->reorderable(false)
                             ->deletable(true)
@@ -154,8 +203,18 @@ class MaletinResource extends Resource
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
+                                
+                                Forms\Components\Select::make('estado_devolucion')
+                                    ->label('Estado Devol.')
+                                    ->options([
+                                        'ok' => 'OK',
+                                        'falta' => 'Falta',
+                                        'danado' => 'Daniado',
+                                    ])
+                                    ->default('ok')
+                                    ->columnSpan(1),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->columnSpanFull()
                             ->reorderable(false)
                             ->deletable(true)
@@ -205,8 +264,18 @@ class MaletinResource extends Resource
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
+                                
+                                Forms\Components\Select::make('estado_devolucion')
+                                    ->label('Estado Devol.')
+                                    ->options([
+                                        'ok' => 'OK',
+                                        'falta' => 'Falta',
+                                        'danado' => 'Daniado',
+                                    ])
+                                    ->default('ok')
+                                    ->columnSpan(1),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->columnSpanFull()
                             ->reorderable(false)
                             ->deletable(true)
@@ -456,6 +525,48 @@ class MaletinResource extends Resource
                         default => (string) $state,
                     })
                     ->toggleable(isToggledHiddenByDefault: false),
+                
+                // ⏬ FECHA DE DEVOLUCIÓN
+                Tables\Columns\TextColumn::make('fecha_devolucion')
+                    ->label('Fecha Devolucion')
+                    ->date('d/m/Y')
+                    ->sortable()
+                    ->placeholder('Sin devolver')
+                    ->toggleable(isToggledHiddenByDefault: false),
+                
+                // ⏬ FECHA DE ATENCION
+                Tables\Columns\TextColumn::make('fecha_atencion')
+                    ->label('Fecha Atencion')
+                    ->date('d/m/Y')
+                    ->sortable()
+                    ->placeholder('Sin atención')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                
+                // ⏬ RESUMEN DE ESTADO DE DEVOLUCION POR ITEM
+                Tables\Columns\TextColumn::make('devolucion_resumen')
+                    ->label('Estado de Devolucion')
+                    ->getStateUsing(function ($record) {
+                        $items = collect()
+                            ->merge($record->componentesEquipo)
+                            ->merge($record->accesoriosSet)
+                            ->merge($record->accesoriosAdicionales);
+                        
+                        $ok = $items->where('estado_devolucion', 'ok')->count();
+                        $faltas = $items->where('estado_devolucion', 'falta')->count();
+                        $danados = $items->where('estado_devolucion', 'danado')->count();
+                        
+                        if ($faltas === 0 && $danados === 0) {
+                            return '✅ ' . $ok . ' OK';
+                        }
+                        
+                        return '✅ ' . $ok . ' OK | ⚠️ ' . $faltas . ' falta | ❌ ' . $danados . ' dañado';
+                    })
+                    ->badge()
+                    ->color(fn ($state) => str_contains($state, '❌')
+                        ? 'danger'
+                        : (str_contains($state, '⚠️') ? 'warning' : 'success'))
+                    ->tooltip('Resumen del estado de devolucion de equipos y accesorios')
+                    ->toggleable(isToggledHiddenByDefault: false),
             ])
             
             ->filters([
@@ -550,6 +661,29 @@ class MaletinResource extends Resource
                             ->success()
                             ->send();
                     }),
+                
+                // ✅ EXPORTAR CHECKLIST (EXCEL Y PDF)
+                ActionGroup::make([
+                    Action::make('exportar_checklist_excel')
+                        ->label('Checklist Excel')
+                        ->icon('heroicon-o-document-arrow-down')
+                        ->color('success')
+                        ->action(function ($record) {
+                            return (new \App\Exports\MaletinChecklistExportPlantilla($record))->download();
+                        }),
+                    
+                    Action::make('exportar_checklist_pdf')
+                        ->label('Checklist PDF')
+                        ->icon('heroicon-o-document')
+                        ->color('danger')
+                        ->action(function ($record) {
+                            return (new \App\Exports\MaletinChecklistPdfExport($record))->download();
+                        }),
+                ])
+                    ->label('Exportar')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->tooltip('Exportar el checklist del maletín (Excel o PDF)'),
                 
                 // ✅ BOTÓN VER (SEGUNDO)
                 Tables\Actions\ViewAction::make()

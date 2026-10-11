@@ -17,6 +17,17 @@ class Maletin extends Model
         'responsable_solicitante',
         'observaciones',
         'estado',
+        'fecha_devolucion',
+        'fecha_atencion',
+        'revisado_por',
+        'version',
+        'aprobado_por',
+        'fecha_documento',
+    ];
+
+    protected $casts = [
+        'fecha_devolucion' => 'date',
+        'fecha_atencion' => 'date',
     ];
 
     // ✅ RELACIÓN CON PRODUCTOS (muchos a muchos)

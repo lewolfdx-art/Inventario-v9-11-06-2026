@@ -56,6 +56,8 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
         // Variables
         $nombreMaletin = null;
         $observaciones = '';
+        $fechaDevolucion = null;
+        $fechaAtencion = null;
         $componentes = [];
         $accesorios = [];
         $adicionales = [];
@@ -68,14 +70,23 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
         // ============================================
         foreach ($data as $fila) {
             $filaArray = array_values($fila);
-            $contenido = trim($filaArray[2] ?? '');
             
-            // Buscar el título del checklist
-            if (stripos($contenido, 'CHECK LIST DE ENTREGA') !== false) {
-                if (preg_match('/CHECK LIST DE ENTREGA\s*-\s*(.+?)(?:\s*$|\s+Versión)/i', $contenido, $matches)) {
+            // Buscar el título del checklist en cualquier columna
+            foreach ($filaArray as $celda) {
+                $contenido = trim((string) ($celda ?? ''));
+                
+                if ($contenido === '') {
+                    continue;
+                }
+                
+                if (stripos($this->normalizarTexto($contenido), 'check list de entrega') === false) {
+                    continue;
+                }
+                
+                if (preg_match('/CHECK LIST DE ENTREGA\s*-\s*(.+?)(?:\s+Versi(?:ó|o)n.*)?$/i', $contenido, $matches)) {
                     $nombreMaletin = trim($matches[1]);
                 }
-                break;
+                break 2;
             }
         }
         
@@ -123,6 +134,18 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                 continue;
             }
             
+            // ⏬ FECHA DE DEVOLUCIÓN (celda etiquetada, como FECHA DE PEDIDO)
+            if (empty($fechaDevolucion) && $this->contieneEtiquetaDevolucion($filaArray)) {
+                $fechaDevolucion = $this->parseFechaDevolucion($filaArray);
+                continue;
+            }
+            
+            // ⏬ FECHA DE ATENCIÓN
+            if (empty($fechaAtencion) && $this->contieneEtiquetaAtencion($filaArray)) {
+                $fechaAtencion = $this->parseFechaDevolucion($filaArray);
+                continue;
+            }
+            
             // ============================================
             // COMPONENTES (items 1, 2)
             // ============================================
@@ -133,6 +156,7 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                     'cantidad' => $this->extractCantidad($cantidad),
                     'descripcion' => $contenido,
                     'incluido' => true,
+                    'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
                 ];
                 continue;
             }
@@ -144,6 +168,7 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                     'cantidad' => $this->extractCantidad($cantidad),
                     'descripcion' => $contenido,
                     'incluido' => true,
+                    'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
                 ];
                 continue;
             }
@@ -180,6 +205,7 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                             'cantidad' => $this->extractCantidad($cantidad),
                             'descripcion' => $contenido,
                             'incluido' => !$this->hasFalta($contenido) && !$this->hasFalta($item),
+                            'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
                         ];
                     }
                 }
@@ -200,6 +226,7 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                             'cantidad' => $this->extractCantidad($cantidad),
                             'descripcion' => $contenido,
                             'incluido' => !$this->hasFalta($contenido) && !$this->hasFalta($item),
+                            'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
                         ];
                     }
                 }
@@ -221,6 +248,8 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
             
             // Actualizar observaciones
             $maletin->observaciones = $observaciones;
+            $maletin->fecha_devolucion = $fechaDevolucion;
+            $maletin->fecha_atencion = $fechaAtencion;
             $maletin->save();
             
         } elseif (!$maletin) {
@@ -229,6 +258,8 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                 'nombre' => $nombreMaletin,
                 'estado' => 'activo',
                 'observaciones' => $observaciones,
+                'fecha_devolucion' => $fechaDevolucion,
+                'fecha_atencion' => $fechaAtencion,
             ]);
         }
         
@@ -358,5 +389,121 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
     protected function hasFalta($text)
     {
         return stripos($text, 'FALTA') !== false;
+    }
+
+    /**
+     * Normaliza un texto: convierte a UTF-8 si viene de Windows-1252,
+     * quita acentos y pasa a minúsculas. Útil para comparar el contenido
+     * del Excel (que puede traer tildes en codificación antigua).
+     */
+    protected function normalizarTexto($text)
+    {
+        $text = (string) $text;
+
+        if ($text === '') {
+            return '';
+        }
+
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
+        }
+
+        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+
+        return strtolower((string) trim($text));
+    }
+
+    /**
+     * Detecta si alguna celda de la fila contiene la etiqueta
+     * "FECHA DE DEVOLUCIÓN" (con o sin tilde).
+     */
+    protected function contieneEtiquetaDevolucion(array $filaArray)
+    {
+        foreach ($filaArray as $celda) {
+            if (str_contains($this->normalizarTexto($celda), 'fecha de devolucion')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detecta si alguna celda de la fila contiene la etiqueta
+     * "FECHA DE ATENCIÓN" (con o sin tilde).
+     */
+    protected function contieneEtiquetaAtencion(array $filaArray)
+    {
+        foreach ($filaArray as $celda) {
+            if (str_contains($this->normalizarTexto($celda), 'fecha de atencion')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extrae la fecha de devolución de la fila etiquetada.
+     * Ejem: "FECHA DE DEVOLUCIÓN: 25/10/2026" o "FECHA DE DEVOLUCIÓN" en A y la fecha en B/C.
+     * Devuelve "Y-m-d" o null.
+     */
+    protected function parseFechaDevolucion(array $filaArray)
+    {
+        $texto = implode(' ', array_filter(array_map('trim', array_map('strval', $filaArray))));
+
+        if (!preg_match('/(\d{1,2})[\s\/\-.]+(\d{1,2})[\s\/\-.]+(\d{2,4})/', $texto, $m)) {
+            return null;
+        }
+
+        $dia = $m[1];
+        $mes = $m[2];
+        $anio = (int) $m[3];
+
+        $formatos = ['d/m/Y', 'd-m-Y', 'd.m.Y', 'Y-m-d', 'd/m/y', 'd-m-y', 'd.m.y'];
+        $fecha = null;
+
+        foreach ($formatos as $formato) {
+            $candidato = \DateTime::createFromFormat($formato, "$dia/$mes/$anio");
+            $errores = \DateTime::getLastErrors();
+            $valida = $candidato && !($errores && ($errores['warning_count'] > 0 || $errores['error_count'] > 0));
+
+            if ($valida) {
+                $fecha = $candidato;
+                break;
+            }
+        }
+
+        if (!$fecha) {
+            return null;
+        }
+
+        // Normalizar año de 2 dígitos -> 4
+        $fecha->setTime(0, 0);
+
+        return $fecha->format('Y-m-d');
+    }
+
+    /**
+     * Determina el estado actual de devolución de un ítem según el texto
+     * del contenido (igual que hoy se deduce "FALTA" para `incluido`).
+     * Valores: ok | falta | danado
+     */
+    protected function determinarEstadoDevolucion($contenido)
+    {
+        $texto = $this->normalizarTexto($contenido);
+
+        if (str_contains($texto, 'danado') || str_contains($texto, 'daniado') ||
+            str_contains($texto, 'mal estado') || str_contains($texto, 'inoperativo') ||
+            str_contains($texto, 'deteriorado') || str_contains($texto, 'no funciona') ||
+            str_contains($texto, 'roto')) {
+            return 'danado';
+        }
+
+        if (str_contains($texto, 'falta')) {
+            return 'falta';
+        }
+
+        return 'ok';
     }
 }

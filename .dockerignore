@@ -8,3 +8,4 @@ storage/uploads/
 Dockerfile
 docker-compose.yml
 public/storage
+*.bak

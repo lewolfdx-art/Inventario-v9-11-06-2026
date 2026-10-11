@@ -31,6 +31,10 @@ use Spatie\Activitylog\Models\Activity;
  * @property int $marca_id
  * @property string|null $descripcion
  * @property string|null $observacion
+ * @property \Illuminate\Support\Carbon|null $fecha_ultima_calibracion
+ * @property \Illuminate\Support\Carbon|null $fecha_ultimo_mantenimiento
+ * @property string $ubicacion
+ * @property string|null $frecuencia_mantenimiento
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -58,6 +62,15 @@ class Producto extends Model
         'marca_id',
         'descripcion',
         'observacion',
+        'fecha_ultima_calibracion',
+        'fecha_ultimo_mantenimiento',
+        'ubicacion',
+        'frecuencia_mantenimiento',
+    ];
+
+    protected $casts = [
+        'fecha_ultima_calibracion' => 'date',
+        'fecha_ultimo_mantenimiento' => 'date',
     ];
 
     // ========== CONFIGURACIÓN DE LOGS ==========
@@ -95,6 +108,7 @@ class Producto extends Model
             ->logAll()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
+            ->useLogName('producto')
             ->setDescriptionForEvent(fn(string $eventName) => "Producto {$eventName}");
     }
 
@@ -294,6 +308,46 @@ class Producto extends Model
     public function getNombreCompletoAttribute()
     {
         return $this->nombre . ' - ' . ($this->marca?->nombre ?? 'Sin marca') . ' - ' . $this->modelo;
+    }
+
+    // ========== CALIBRACIÓN / MANTENIMIENTO ==========
+
+    public function getFechaBaseMantenimientoAttribute()
+    {
+        return collect([$this->fecha_ultima_calibracion, $this->fecha_ultimo_mantenimiento])
+            ->filter()
+            ->max();
+    }
+
+    public function getProximoMantenimientoAttribute()
+    {
+        $base = $this->fecha_base_mantenimiento;
+        if (!$base) {
+            return null;
+        }
+
+        return match ($this->frecuencia_mantenimiento) {
+            '1_anio'  => $base->copy()->addYear(),
+            '2_anios' => $base->copy()->addYears(2),
+            default   => null,
+        };
+    }
+
+    public function getVigenciaMantenimientoAttribute(): string
+    {
+        if ($this->frecuencia_mantenimiento === 'vida_util_unica') {
+            return 'no_aplica';
+        }
+        if (!$this->frecuencia_mantenimiento) {
+            return 'sin_definir';
+        }
+
+        $proximo = $this->proximo_mantenimiento;
+        if (!$proximo) {
+            return 'sin_fecha';
+        }
+
+        return $proximo->greaterThanOrEqualTo(now()->startOfDay()) ? 'vigente' : 'vencido';
     }
 
     // ========== ACTIVITY LOG RELATION ==========

@@ -18,6 +18,7 @@ class MaletinAccesorioSet extends Model
         'cantidad',
         'descripcion',
         'incluido',
+        'estado_devolucion',
     ];
 
     protected $casts = [

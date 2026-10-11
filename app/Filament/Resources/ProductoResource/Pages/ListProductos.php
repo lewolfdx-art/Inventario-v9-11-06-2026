@@ -74,7 +74,7 @@ class ListProductos extends ListRecords
                         ');
                     }
 
-                    $html = '<div class="space-y-2 max-h-[60vh] overflow-y-auto p-2" style="scrollbar-width: thin;">';
+                    $html = '<div class="space-y-2 p-2" style="max-height: 60vh; overflow-y: auto; scrollbar-width: thin;">';
                     
                     $html .= '<div class="text-sm text-gray-500 mb-3 text-center">Total: ' . $productos->count() . ' producto(s) sin stock</div>';
                     
