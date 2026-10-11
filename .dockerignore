@@ -9,3 +9,23 @@ Dockerfile
 docker-compose.yml
 public/storage
 *.bak
+
+# ===== Escritorio (PHPDesktop + Chromium) - NO se usa en la imagen Linux =====
+php/
+phpdesktop-chrome.exe
+*.dll
+*.pak
+*.dat
+*.bin
+locales/
+resources.pak
+chrome_*.pak
+icudtl.dat
+v8_context_snapshot.bin
+snapshot_blob.bin
+vk_swiftshader_icd.json
+*.iss
+*.bat
+*.lnk
+*.exe
+settings.json
