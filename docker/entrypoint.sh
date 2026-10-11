@@ -17,8 +17,10 @@ until php artisan migrate --force; do
     sleep 2
 done
 
-# Limpiar cachés para tomar configuración/plantillas actualizadas
-php artisan config:clear >/dev/null 2>&1 || true
-php artisan view:clear >/dev/null 2>&1 || true
+# Optimizar cachés (config + rutas + eventos) para rendimiento.
+# NOTA: al tener el código quemado en la imagen, cualquier cambio requiere rebuild.
+php artisan config:cache >/dev/null 2>&1 || true
+php artisan route:cache >/dev/null 2>&1 || true
+php artisan event:cache >/dev/null 2>&1 || true
 
 exec apache2-foreground
