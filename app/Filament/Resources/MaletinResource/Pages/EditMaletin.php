@@ -69,7 +69,7 @@ class EditMaletin extends EditRecord
                 }
             }
             foreach ($filtered as $index => &$item) {
-                $item['item_numero'] = $index + 1;
+                $item['item_numero'] = 300 + ($index + 1);
                 $item['incluido'] = $item['incluido'] ?? false;
             }
             $data['accesoriosSet'] = $filtered;
@@ -83,7 +83,7 @@ class EditMaletin extends EditRecord
                 }
             }
             foreach ($filtered as $index => &$item) {
-                $item['item_numero'] = $index + 1;
+                $item['item_numero'] = 400 + ($index + 1);
                 $item['incluido'] = $item['incluido'] ?? false;
             }
             $data['accesoriosAdicionales'] = $filtered;

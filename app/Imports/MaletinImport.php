@@ -5,7 +5,6 @@ namespace App\Imports;
 
 use App\Models\Maletin;
 use Maatwebsite\Excel\Concerns\Importable;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -13,7 +12,7 @@ use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class MaletinImport implements WithMultipleSheets, WithCalculatedFormulas
+class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormulas
 {
     use Importable;
 
@@ -28,42 +27,33 @@ class MaletinImport implements WithMultipleSheets, WithCalculatedFormulas
         $this->cleanExisting = $cleanExisting;
     }
 
-    public function sheets(): array
-    {
-        return [
-            'Hoja2' => new FirstSheetImport($this->categoriaId, $this->subcategoriaId, $this->cleanExisting),
-        ];
-    }
-}
-
-class FirstSheetImport implements ToCollection, SkipsEmptyRows
-{
-    protected $categoriaId;
-    protected $subcategoriaId;
-    protected $cleanExisting;
-
-    public function __construct($categoriaId = null, $subcategoriaId = null, $cleanExisting = true)
-    {
-        $this->categoriaId = $categoriaId;
-        $this->subcategoriaId = $subcategoriaId;
-        $this->cleanExisting = $cleanExisting;
-    }
-
     public function collection(Collection $rows)
     {
-        $data = $rows->toArray();
+        $data = array_values($rows->toArray());
+
+        // Si la hoja no es un checklist (no contiene el título ni el equipo
+        // de pruebas), se ignora. Así la importación NO depende de que la hoja
+        // se llame "Hoja2": funciona con cualquier nombre ("Checklist", etc.)
+        // y en archivos con varias hojas procesa únicamente la del checklist.
+        if (!$this->esChecklist($data)) {
+            return;
+        }
         
         // Variables
         $nombreMaletin = null;
         $observaciones = '';
         $fechaDevolucion = null;
         $fechaAtencion = null;
+        $fechaSolicitud = null;
+        $responsableSolicitante = null;
+        $proyectoCliente = null;
         $componentes = [];
         $accesorios = [];
         $adicionales = [];
         
         $procesandoAccesorios = false;
         $procesandoAdicionales = false;
+        $seccionAdicionales = false;
         
         // ============================================
         // PASADA 1: DETECTAR EL NOMBRE DEL MALETÍN
@@ -128,22 +118,49 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                 continue;
             }
             
-            // Buscar observaciones
-            if (stripos($contenido, 'OBSERVACIONES') !== false) {
-                $observaciones = $contenido;
+            // Buscar observaciones (la etiqueta puede estar en cualquier columna; el
+            // texto va a su derecha y, si es largo, en las siguientes 2 filas)
+            if ($this->contieneEtiqueta($filaArray, 'observaciones')) {
+                $observaciones = $this->leerObservaciones($filaArray, $data, $index);
                 continue;
             }
             
-            // ⏬ FECHA DE DEVOLUCIÓN (celda etiquetada, como FECHA DE PEDIDO)
-            if (empty($fechaDevolucion) && $this->contieneEtiquetaDevolucion($filaArray)) {
-                $fechaDevolucion = $this->parseFechaDevolucion($filaArray);
+            // ⏬ FECHAS ETIQUETADAS (FECHA DE PEDIDO, FECHA DE ATENCIÓN, FECHA DE DEVOLUCIÓN).
+            // Se lee cada una a partir de la columna de su etiqueta: la fila de
+            // FECHA DE PEDIDO y FECHA DE ATENCIÓN comparten fila (A9 y J9).
+            if (empty($fechaDevolucion)) {
+                $fechaDevolucion = $this->parseFechaEtiquetada($filaArray, 'fecha de devolucion');
+            }
+            if (empty($fechaAtencion)) {
+                $fechaAtencion = $this->parseFechaEtiquetada($filaArray, 'fecha de atencion');
+            }
+            if (empty($fechaSolicitud)) {
+                $fechaSolicitud = $this->parseFechaEtiquetada($filaArray, 'fecha de pedido');
+            }
+
+            // Las filas de etiquetas no son items: no seguir procesándolas.
+            if ($this->contieneEtiqueta($filaArray, 'fecha de devolucion') ||
+                $this->contieneEtiqueta($filaArray, 'fecha de atencion') ||
+                $this->contieneEtiqueta($filaArray, 'fecha de pedido')) {
                 continue;
             }
             
-            // ⏬ FECHA DE ATENCIÓN
-            if (empty($fechaAtencion) && $this->contieneEtiquetaAtencion($filaArray)) {
-                $fechaAtencion = $this->parseFechaDevolucion($filaArray);
-                continue;
+            // ⏬ NOMBRE DEL PROYECTO Y CLIENTE
+            if (empty($proyectoCliente)) {
+                $leido = $this->leerCampoEtiquetado($filaArray, 'nombre del proyecto y cliente');
+                if ($leido !== null) {
+                    $proyectoCliente = $leido;
+                    continue;
+                }
+            }
+            
+            // ⏬ RESPONSABLE SOLICITANTE
+            if (empty($responsableSolicitante)) {
+                $leido = $this->leerCampoEtiquetado($filaArray, 'responsable solicitante');
+                if ($leido !== null) {
+                    $responsableSolicitante = $leido;
+                    continue;
+                }
             }
             
             // ============================================
@@ -176,15 +193,18 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
             // ============================================
             // DETECTAR SECCIONES
             // ============================================
-            if (stripos($contenido, 'SET DE ACCESORIOS DE CONEXIÓN') !== false) {
+            // Sección de accesorios (3.x): el título puede estar en cualquier columna
+            if ($this->contieneEtiqueta($filaArray, 'set de accesorios de conexion')) {
                 $procesandoAccesorios = true;
                 $procesandoAdicionales = false;
                 continue;
             }
             
-            if (stripos($contenido, 'PAQUETE ADICIONAL DE ACCESORIOS') !== false) {
+            // Sección de adicionales (4.x): el título puede estar en cualquier columna
+            if ($this->contieneEtiqueta($filaArray, 'paquete adicional de accesorios')) {
                 $procesandoAccesorios = false;
                 $procesandoAdicionales = true;
+                $seccionAdicionales = true;
                 continue;
             }
             
@@ -215,28 +235,48 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
             // PROCESAR ADICIONALES
             // ============================================
             if ($procesandoAdicionales && !empty($item) && !empty($contenido)) {
+                // Dentro de la sección "PAQUETE ADICIONAL DE ACCESORIOS" toda fila
+                // con item y contenido es un adicional, aunque el item no siga el
+                // esquema 4.xx (al agregarlo a mano es fácil que quede como 1.xx).
                 if (preg_match('/^4[\.\s]/', $item) || preg_match('/^4\.\d+$/', $item)) {
                     $itemNum = $this->extractItemNumber($item);
-                    
-                    if ($itemNum > 0) {
-                        $contenido = $this->limpiarContenido($contenido);
-                        
-                        $adicionales[] = [
-                            'item_numero' => $itemNum,
-                            'cantidad' => $this->extractCantidad($cantidad),
-                            'descripcion' => $contenido,
-                            'incluido' => !$this->hasFalta($contenido) && !$this->hasFalta($item),
-                            'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
-                        ];
-                    }
+                } else {
+                    $itemNum = 400 + (count($adicionales) + 1);
+                }
+
+                if ($itemNum > 0) {
+                    $contenido = $this->limpiarContenido($contenido);
+
+                    $adicionales[] = [
+                        'item_numero' => $itemNum,
+                        'cantidad' => $this->extractCantidad($cantidad),
+                        'descripcion' => $contenido,
+                        'incluido' => !$this->hasFalta($contenido) && !$this->hasFalta($item),
+                        'estado_devolucion' => $this->determinarEstadoDevolucion($contenido),
+                    ];
                 }
             }
         }
-        
+
+        // La sección "PAQUETE ADICIONAL DE ACCESORIOS" debe verse siempre en el
+        // sistema (Ver/Editar), aunque el Excel traiga las filas 4.01 - 4.03 en
+        // blanco. Si la sección existe y no hay adicionales con contenido, se
+        // crean esas 3 filas vacías para conservar la estructura de la plantilla.
+        if ($seccionAdicionales && empty($adicionales)) {
+            foreach ([401, 402, 403] as $num) {
+                $adicionales[] = [
+                    'item_numero' => $num,
+                    'cantidad' => 1,
+                    'descripcion' => null,
+                    'incluido' => false,
+                    'estado_devolucion' => null,
+                ];
+            }
+        }
+
         // ============================================
         // CREAR O ACTUALIZAR MALETÍN
         // ============================================
-        
         // Buscar si ya existe un maletín con ese nombre
         $maletin = Maletin::where('nombre', $nombreMaletin)->first();
         
@@ -248,8 +288,11 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
             
             // Actualizar observaciones
             $maletin->observaciones = $observaciones;
+            $maletin->fecha_solicitud = $fechaSolicitud;
             $maletin->fecha_devolucion = $fechaDevolucion;
             $maletin->fecha_atencion = $fechaAtencion;
+            $maletin->responsable_solicitante = $responsableSolicitante;
+            $maletin->proyecto_cliente = $proyectoCliente;
             $maletin->save();
             
         } elseif (!$maletin) {
@@ -258,8 +301,11 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
                 'nombre' => $nombreMaletin,
                 'estado' => 'activo',
                 'observaciones' => $observaciones,
+                'fecha_solicitud' => $fechaSolicitud,
                 'fecha_devolucion' => $fechaDevolucion,
                 'fecha_atencion' => $fechaAtencion,
+                'responsable_solicitante' => $responsableSolicitante,
+                'proyecto_cliente' => $proyectoCliente,
             ]);
         }
         
@@ -392,6 +438,31 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
     }
 
     /**
+     * Determina si la hoja corresponde a un checklist de maletín.
+     * Busca el título "CHECK LIST DE ENTREGA" o una fila "EQUIPO DE PRUEBAS:"
+     * sin depender del nombre de la hoja.
+     */
+    protected function esChecklist(array $data): bool
+    {
+        foreach ($data as $fila) {
+            foreach (array_values($fila) as $celda) {
+                $contenido = $this->normalizarTexto($celda);
+
+                if ($contenido === '') {
+                    continue;
+                }
+
+                if (str_contains($contenido, 'check list de entrega') ||
+                    str_contains($contenido, 'equipo de pruebas')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Normaliza un texto: convierte a UTF-8 si viene de Windows-1252,
      * quita acentos y pasa a minúsculas. Útil para comparar el contenido
      * del Excel (que puede traer tildes en codificación antigua).
@@ -441,6 +512,154 @@ class FirstSheetImport implements ToCollection, SkipsEmptyRows
         }
 
         return false;
+    }
+
+    /**
+     * Detecta si alguna celda de la fila contiene la etiqueta dada
+     * (comparando sin acentos ni mayúsculas).
+     */
+    protected function contieneEtiqueta(array $filaArray, string $etiqueta)
+    {
+        $norm = $this->normalizarTexto($etiqueta);
+
+        foreach ($filaArray as $celda) {
+            if (str_contains($this->normalizarTexto($celda), $norm)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Lee el valor que hay junto a una etiqueta de la fila.
+     * Ejem: para "NOMBRE DEL PROYECTO Y CLIENTE:" en A6 devuelve lo que
+     * esté escrito en la misma celda después de los dos puntos, o en las
+     * celdas de la derecha (B6, C6, ...). Devuelve null si no encuentra
+     * la etiqueta o si no hay ningún valor.
+     */
+    protected function leerCampoEtiquetado(array $filaArray, string $etiqueta)
+    {
+        $norm = $this->normalizarTexto($etiqueta);
+
+        foreach ($filaArray as $i => $celda) {
+            $txt = trim((string) ($celda ?? ''));
+            $n = $this->normalizarTexto($celda);
+
+            if ($n === '' || !str_contains($n, $norm)) {
+                continue;
+            }
+
+            $partes = [];
+
+            // Valor escrito en la misma celda después de los dos puntos
+            if (preg_match('/:\s*(.+)$/u', $txt, $m) && trim($m[1]) !== '') {
+                $partes[] = trim($m[1]);
+            }
+
+            // Celdas a la derecha de la etiqueta
+            foreach (array_slice(array_values($filaArray), $i + 1) as $v) {
+                $vv = trim((string) ($v ?? ''));
+                if ($vv !== '') {
+                    $partes[] = $vv;
+                }
+            }
+
+            if ($partes !== []) {
+                return implode(' ', array_unique($partes));
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Arma el texto de OBSERVACIONES: toma lo escrito en la misma fila de la
+     * etiqueta (a su derecha) y, si el texto es largo, las siguientes 1-2 filas
+     * de continuación (se detiene ante filas de firmas o de items).
+     */
+    protected function leerObservaciones(array $filaArray, array $data, $index): string
+    {
+        $partes = [];
+
+        // Texto en la misma fila (excepto la propia etiqueta)
+        foreach ($filaArray as $celda) {
+            $v = trim((string) ($celda ?? ''));
+            if ($v === '' || $this->contieneEtiqueta([$v], 'observaciones')) {
+                continue;
+            }
+            $partes[] = $v;
+        }
+
+        // Filas de continuación
+        $claves = [
+            'entregado por', 'recibido por', 'n. y a', 'dni',
+            'equipo de pruebas', 'maleta de transporte', 'set de accesorios',
+            'paquete adicional', 'fecha de', 'item', 'contenido',
+        ];
+
+        for ($d = 1; $d <= 2; $d++) {
+            $sig = $data[$index + $d] ?? null;
+            if (!$sig) {
+                break;
+            }
+
+            $vals = array_values($sig);
+            $texto = trim(implode(' ', array_filter(array_map(fn ($x) => trim((string) ($x ?? '')), $vals))));
+
+            if ($texto === '') {
+                continue;
+            }
+
+            $norm = $this->normalizarTexto($texto);
+            $corta = false;
+
+            foreach ($claves as $k) {
+                if (str_contains($norm, $k)) {
+                    $corta = true;
+                    break;
+                }
+            }
+
+            // Fila que parece un item (A numérico + B cantidad)
+            $a = trim((string) ($vals[0] ?? ''));
+            $b = trim((string) ($vals[1] ?? ''));
+            if ($a !== '' && is_numeric($a) && $b !== '') {
+                $corta = true;
+            }
+
+            if ($corta) {
+                break;
+            }
+
+            $partes[] = $texto;
+        }
+
+        return trim(preg_replace('/\s+/', ' ', implode(' ', $partes)));
+    }
+
+    /**
+     * Extrae la fecha escrita a partir de la celda que contiene la etiqueta.
+     * Ejem: para "FECHA DE ATENCIÓN" en J9 devuelve la fecha de N9, y no la
+     * de D9 (FECHA DE PEDIDO) que está antes en la misma fila.
+     * Devuelve "Y-m-d" o null.
+     */
+    protected function parseFechaEtiquetada(array $filaArray, string $etiqueta)
+    {
+        $norm = $this->normalizarTexto($etiqueta);
+
+        foreach ($filaArray as $i => $celda) {
+            if (!str_contains($this->normalizarTexto($celda), $norm)) {
+                continue;
+            }
+
+            // Desde la columna de la etiqueta hacia la derecha
+            $trozo = array_values(array_slice($filaArray, $i));
+
+            return $this->parseFechaDevolucion($trozo);
+        }
+
+        return null;
     }
 
     /**

@@ -39,6 +39,18 @@ class MaletinResource extends Resource
                         ->placeholder('Ingrese el nombre del maletin')
                         ->columnSpan(1),
                     
+                    Forms\Components\TextInput::make('proyecto_cliente')
+                        ->label('Nombre del Proyecto y Cliente')
+                        ->maxLength(255)
+                        ->placeholder('Ej. ISA CBA 3000')
+                        ->columnSpan(2),
+                    
+                    Forms\Components\TextInput::make('responsable_solicitante')
+                        ->label('Responsable Solicitante')
+                        ->maxLength(255)
+                        ->placeholder('Nombre de quien solicita')
+                        ->columnSpan(2),
+                    
                     Forms\Components\Placeholder::make('fecha_creacion')
                         ->label('Fecha de Creacion')
                         ->content(now()->format('d/m/Y H:i'))
@@ -55,6 +67,13 @@ class MaletinResource extends Resource
                         ])
                         ->default('activo')
                         ->required()
+                        ->columnSpan(2),
+                    
+                    // ⏬ FECHA DE PEDIDO
+                    Forms\Components\DatePicker::make('fecha_solicitud')
+                        ->label('Fecha de Pedido')
+                        ->native(false)
+                        ->helperText('Se completa automáticamente al importar el checklist')
                         ->columnSpan(2),
                     
                     // ⏬ FECHA DE DEVOLUCIÓN (se llena automáticamente al importar desde Excel)
@@ -282,7 +301,11 @@ class MaletinResource extends Resource
                             ->addActionLabel('Agregar Accesorio Adicional')
                             ->defaultItems(0)
                             ->minItems(0)
-                            ->maxItems(50),
+                            ->maxItems(50)
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $data['item_numero'] = $data['item_numero'] ?? 0;
+                                return $data;
+                            }),
                     ]),
                 
                 // ==================== SECCION 5: OBSERVACIONES ====================
@@ -733,30 +756,31 @@ class MaletinResource extends Resource
      */
     protected static function getNextItemNumber($livewire, $tipo): int
     {
-        if (!$livewire || !$livewire->data) {
-            return 1;
-        }
-        
+        // Bases: componentes 1,2,... / accesorios 3.01,3.02,... / adicionales 4.01,4.02,...
+        $base = match ($tipo) {
+            'componentes' => 0,
+            'set' => 300,
+            default => 400,
+        };
+
         $items = [];
-        if ($tipo === 'componentes') {
-            $items = $livewire->data['componentesEquipo'] ?? [];
-        } elseif ($tipo === 'set') {
-            $items = $livewire->data['accesoriosSet'] ?? [];
-        } else {
-            $items = $livewire->data['accesoriosAdicionales'] ?? [];
+        if ($livewire && $livewire->data) {
+            if ($tipo === 'componentes') {
+                $items = $livewire->data['componentesEquipo'] ?? [];
+            } elseif ($tipo === 'set') {
+                $items = $livewire->data['accesoriosSet'] ?? [];
+            } else {
+                $items = $livewire->data['accesoriosAdicionales'] ?? [];
+            }
         }
-        
-        if (empty($items)) {
-            return 1;
-        }
-        
-        $max = 0;
+
+        $max = $base;
         foreach ($items as $item) {
             if (isset($item['item_numero']) && (int) $item['item_numero'] > $max) {
                 $max = (int) $item['item_numero'];
             }
         }
-        
+
         return $max + 1;
     }
 }

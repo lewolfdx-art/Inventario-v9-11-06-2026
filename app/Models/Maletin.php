@@ -15,8 +15,10 @@ class Maletin extends Model
     protected $fillable = [
         'nombre',
         'responsable_solicitante',
+        'proyecto_cliente',
         'observaciones',
         'estado',
+        'fecha_solicitud',
         'fecha_devolucion',
         'fecha_atencion',
         'revisado_por',
@@ -26,6 +28,7 @@ class Maletin extends Model
     ];
 
     protected $casts = [
+        'fecha_solicitud' => 'date',
         'fecha_devolucion' => 'date',
         'fecha_atencion' => 'date',
     ];

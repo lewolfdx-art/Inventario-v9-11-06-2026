@@ -162,11 +162,26 @@ class MaletinChecklistExportPlantilla
         $this->box($ws, 'R3:U4', "Fecha:\n" . ($maletin->fecha_documento ?: '01/07/14'), $marca);
 
         // ===== DATOS DEL PROYECTO =====
+        // NOMBRE DEL PROYECTO Y CLIENTE (etiqueta en A6)
+        if ($maletin->proyecto_cliente) {
+            $this->box($ws, 'H6:U6', $maletin->proyecto_cliente, [
+                'size' => 9, 'bold' => true, 'v' => Alignment::VERTICAL_BOTTOM,
+            ]);
+        }
+
+        // RESPONSABLE SOLICITANTE (etiqueta en A8)
         if ($maletin->responsable_solicitante) {
             $this->box($ws, 'G8:T8', $maletin->responsable_solicitante, [
                 'size' => 9, 'bold' => true, 'v' => Alignment::VERTICAL_BOTTOM,
             ]);
         }
+
+        // FECHA DE PEDIDO (etiqueta en A9, valor en D9:I9)
+        $fechaPedidoTxt = $maletin->fecha_solicitud ? $maletin->fecha_solicitud->format('d/m/Y') : '';
+        $this->box($ws, 'D9:I9', $fechaPedidoTxt, [
+            'size' => 9, 'bold' => true, 'h' => $center,
+            'color' => $maletin->fecha_solicitud ? 'FF1B5E20' : 'FF000000',
+        ]);
 
         // FECHA DE ATENCIÓN (N9) - la plantilla ya trae la etiqueta en J9:M9
         $fechaAtencionTxt = $maletin->fecha_atencion ? $maletin->fecha_atencion->format('d/m/Y') : '';
@@ -263,12 +278,25 @@ class MaletinChecklistExportPlantilla
             }
         }
 
-        // 4.xx: paquete adicional
-        if ($maletin->accesoriosAdicionales->isNotEmpty()) {
-            $section(4, $this->tituloAdicional);
-            foreach ($maletin->accesoriosAdicionales as $a) {
-                $push($this->formatItemNumber($a->item_numero), $a->cantidad, ' - ' . $a->descripcion, $a->estado_devolucion, ['height' => 15]);
-            }
+        // 4.xx: paquete adicional (la sección SIEMPRE se exporta; si no hay
+        // adicionales se dejan las filas 4.01 - 4.03 en blanco para conservar
+        // la estructura de la plantilla).
+        $section(4, $this->tituloAdicional);
+        $adicionales = $maletin->accesoriosAdicionales;
+        foreach ($adicionales as $a) {
+            $desc = trim((string) $a->descripcion);
+            $push(
+                $this->formatItemNumber($a->item_numero),
+                $desc === '' ? '' : $a->cantidad,
+                $desc === '' ? '' : ' - ' . $a->descripcion,
+                $a->estado_devolucion,
+                ['height' => 15]
+            );
+        }
+        // La plantilla reserva 3 filas (4.01 - 4.03): si hay menos adicionales
+        // se completan en blanco para poder seguir agregando.
+        for ($n = $adicionales->count(); $n < 3; $n++) {
+            $push($this->formatItemNumber(401 + $n), '', '', null, ['height' => 15]);
         }
 
         // ===== BORDES DE LA TABLA: interior hair, contorno thin =====

@@ -83,7 +83,11 @@ class MaletinesRelationManager extends RelationManager
                             ->addActionLabel('Agregar Componente')
                             ->defaultItems(0)
                             ->minItems(0)
-                            ->maxItems(50),
+                            ->maxItems(50)
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $data['item_numero'] = $data['item_numero'] ?? 0;
+                                return $data;
+                            }),
                     ]),
                 
                 Forms\Components\Section::make('Contenido de la Maleta')
@@ -128,7 +132,11 @@ class MaletinesRelationManager extends RelationManager
                             ->addActionLabel('Agregar Accesorio')
                             ->defaultItems(0)
                             ->minItems(0)
-                            ->maxItems(50),
+                            ->maxItems(50)
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $data['item_numero'] = $data['item_numero'] ?? 0;
+                                return $data;
+                            }),
                     ]),
                 
                 Forms\Components\Section::make('Paquete Adicional de Accesorios')
@@ -173,7 +181,11 @@ class MaletinesRelationManager extends RelationManager
                             ->addActionLabel('Agregar Accesorio Adicional')
                             ->defaultItems(0)
                             ->minItems(0)
-                            ->maxItems(50),
+                            ->maxItems(50)
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $data['item_numero'] = $data['item_numero'] ?? 0;
+                                return $data;
+                            }),
                     ]),
                 
                 Forms\Components\Section::make('Observaciones')
