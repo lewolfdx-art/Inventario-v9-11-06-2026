@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Producto;
+use App\Models\Unidad;
 use App\Models\Movimiento;
 use Filament\Widgets\Widget;
 use Filament\Forms;
@@ -61,6 +62,13 @@ class ScannerWidget extends Widget
 
         // ✅ Limpiar el SKU escaneado
         $sku_limpio = str_replace(["'", "´", "`"], '-', $this->sku);
+
+        // ✅ 1) Buscar primero una UNIDAD física (código propio: 0SKU-001)
+        $unidad = Unidad::where('codigo', $sku_limpio)->first();
+        if ($unidad) {
+            $this->procesarUnidad($unidad);
+            return;
+        }
 
         // Buscar el producto por SKU limpio
         $producto = Producto::where('sku', $sku_limpio)->first();
@@ -157,5 +165,68 @@ class ScannerWidget extends Widget
             ->body('El próximo escaneo será una SALIDA')
             ->info()
             ->send();
+    }
+
+    /**
+     * ✅ Escaneo de unidad: disponible → SALIDA, salido → ENTRADA
+     */
+    protected function procesarUnidad(Unidad $unidad)
+    {
+        $producto = $unidad->producto;
+        $stockAnterior = $producto->stock ?? 0;
+
+        if ($unidad->estado === 'disponible') {
+            if ($stockAnterior <= 0) {
+                Notification::make()
+                    ->title('❌ Sin stock disponible')
+                    ->body('No hay stock para ' . $producto->nombre . ' (unidad ' . $unidad->codigo . ')')
+                    ->danger()
+                    ->send();
+                $this->sku = '';
+                return;
+            }
+
+            $stockNuevo = $stockAnterior - 1;
+            $unidad->estado = 'salido';
+            $tipo = 'salida';
+            $icono = '📤';
+            $color = 'warning';
+        } else {
+            $stockNuevo = $stockAnterior + 1;
+            $unidad->estado = 'disponible';
+            $tipo = 'entrada';
+            $icono = '📥';
+            $color = 'success';
+        }
+
+        $unidad->save();
+        $producto->stock = $stockNuevo;
+        $producto->save();
+
+        Movimiento::create([
+            'producto_id'     => $producto->id,
+            'unidad_id'       => $unidad->id,
+            'tipo'            => $tipo,
+            'cantidad'        => 1,
+            'stock_anterior'  => $stockAnterior,
+            'stock_nuevo'     => $stockNuevo,
+            'observaciones'   => 'Unidad ' . $unidad->codigo,
+        ]);
+
+        $this->ultimo_escaneo = [
+            'producto' => $producto,
+            'unidad' => $unidad,
+            'stock_anterior' => $stockAnterior,
+            'stock_nuevo' => $stockNuevo,
+            'tipo' => $tipo,
+        ];
+
+        Notification::make()
+            ->title($icono . ' ' . ucfirst($tipo) . ' unidad ' . $unidad->codigo)
+            ->body($producto->nombre . ' | Stock: ' . $stockAnterior . ' → ' . $stockNuevo)
+            ->$color()
+            ->send();
+
+        $this->sku = '';
     }
 }

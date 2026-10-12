@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Producto;
+use App\Models\Unidad;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Http\Response;
 
@@ -68,5 +69,60 @@ class ProductoBarcodeController extends Controller
         // Reemplazar caracteres problemáticos
         $sku = str_replace(["'", "´", "`"], '-', $sku);
         return $sku;
+    }
+
+    public function generateUnidad(Unidad $unidad)
+    {
+        if (empty($unidad->codigo)) {
+            abort(404, 'Esta unidad no tiene código de barras.');
+        }
+
+        // ✅ Limpiar código de la unidad
+        $codigo = $this->limpiarSKU($unidad->codigo);
+
+        $generator = new BarcodeGeneratorPNG();
+
+        $widthFactor = 2;
+        $height = 100;
+
+        $rawImage = $generator->getBarcode(
+            $codigo,  // ✅ Usar código de la unidad
+            $generator::TYPE_CODE_128,
+            $widthFactor,
+            $height
+        );
+
+        $im = imagecreatefromstring($rawImage);
+        if ($im === false) {
+            abort(500, 'Error al generar el código de barras.');
+        }
+
+        $bcWidth  = imagesx($im);
+        $bcHeight = imagesy($im);
+
+        $marginLeftRight = 15;
+        $marginTopBottom = 12;
+
+        $totalWidth  = $bcWidth + (2 * $marginLeftRight);
+        $totalHeight = $bcHeight + (2 * $marginTopBottom);
+
+        $newImage = imagecreatetruecolor($totalWidth, $totalHeight);
+        $white = imagecolorallocate($newImage, 255, 255, 255);
+        imagefill($newImage, 0, 0, $white);
+
+        imagecopy($newImage, $im, $marginLeftRight, $marginTopBottom, 0, 0, $bcWidth, $bcHeight);
+
+        imagedestroy($im);
+
+        ob_start();
+        imagepng($newImage, null, 9);
+        $finalImage = ob_get_clean();
+
+        imagedestroy($newImage);
+
+        return response($finalImage)
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'public, max-age=86400')
+            ->header('Content-Disposition', 'inline; filename="barcode_' . $unidad->codigo . '.png"');
     }
 }

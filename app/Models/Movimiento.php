@@ -11,6 +11,7 @@ class Movimiento extends Model
 
     protected $fillable = [
         'producto_id',
+        'unidad_id',
         'tipo',
         'cantidad',
         'stock_anterior',

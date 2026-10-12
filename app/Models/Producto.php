@@ -208,6 +208,17 @@ class Producto extends Model
         return $this->hasMany(Movimiento::class);
     }
 
+    // ✅ UNIDADES FÍSICAS (cada una con su código de barras propio)
+    public function unidades()
+    {
+        return $this->hasMany(Unidad::class, 'producto_id');
+    }
+
+    public function hasUnidades(): bool
+    {
+        return $this->unidades()->exists();
+    }
+
     // ✅ RELACIÓN CON MALETINES (muchos a muchos)
     public function maletines()
     {

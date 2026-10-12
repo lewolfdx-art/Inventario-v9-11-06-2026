@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Producto;
+use App\Models\Unidad;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Http\Response;
 
@@ -14,11 +15,87 @@ class EtiquetaZPLController extends Controller
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        $zpl = $this->generarZPL($producto);
+        $zpl = $this->generarZPLProductoCompleto($producto);
 
         return response($zpl, 200)
             ->header('Content-Type', 'text/plain')
             ->header('Content-Disposition', 'attachment; filename="etiqueta_' . $producto->sku . '.zpl"');
+    }
+
+    /**
+     * ✅ "Imprimir todas": un bloque ZPL por cada unidad física.
+     * Si el producto no tiene unidades, devuelve la etiqueta única por SKU.
+     */
+    public function generarZPLProductoCompleto(Producto $producto)
+    {
+        $unidades = $producto->unidades()->orderBy('codigo')->get();
+
+        if ($unidades->isEmpty()) {
+            return $this->generarZPL($producto);
+        }
+
+        return $unidades
+            ->map(fn (Unidad $unidad) => $this->generarZPLUnidad($unidad))
+            ->join("\n\n");
+    }
+
+    public function generateUnidad(Unidad $unidad)
+    {
+        if (empty($unidad->codigo)) {
+            abort(404, 'Esta unidad no tiene código.');
+        }
+
+        $zpl = $this->generarZPLUnidad($unidad);
+
+        return response($zpl, 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="etiqueta_' . $unidad->codigo . '.zpl"');
+    }
+
+    public function generarZPLUnidad(Unidad $unidad)
+    {
+        $producto = $unidad->producto;
+
+        $codigoBarcode = $unidad->codigo ?? 'Sin codigo';
+
+        $nombre = $this->limpiarTexto($producto->nombre ?? 'Sin nombre');
+        $marca  = $this->limpiarTexto($producto->marca->nombre ?? '');
+        $modelo = $this->limpiarTexto($producto->modelo ?? '');
+        $serie  = $this->limpiarTexto($unidad->serie ?? $producto->serie ?? '');
+        $fecha  = now()->format('d/m/Y');
+
+        $nombre = substr($nombre, 0, 28);
+        $marca  = substr($marca, 0, 15);
+        $modelo = substr($modelo, 0, 15);
+        $serie  = substr($serie, 0, 12);
+
+        return <<<ZPL
+^XA
+^PW812
+^LL406
+^LS0
+^LH0,0
+^BY2,3,45
+
+^FX COLUMNA IZQUIERDA
+^FO5,26^ADN,14,9^FDProducto: {$nombre}^FS
+^FO5,48^ADN,12,8^FDMarca: {$marca}^FS
+^FO5,66^ADN,12,8^FDModelo: {$modelo}^FS
+^FO5,88^BCN,45,Y,N,N^FD>{$codigoBarcode}^FS
+^FO5,175^ADN,11,7^FDSerie: {$serie}^FS
+^FO5,195^ADN,9,6^FD{$fecha}^FS
+
+^FX COLUMNA DERECHA
+^LH425,0
+^FO5,26^ADN,14,9^FDProducto: {$nombre}^FS
+^FO5,48^ADN,12,8^FDMarca: {$marca}^FS
+^FO5,66^ADN,12,8^FDModelo: {$modelo}^FS
+^FO5,88^BCN,45,Y,N,N^FD>{$codigoBarcode}^FS
+^FO5,175^ADN,11,7^FDSerie: {$serie}^FS
+^FO5,195^ADN,9,6^FD{$fecha}^FS
+
+^XZ
+ZPL;
     }
 
     public function generarZPL(Producto $producto)
@@ -195,7 +272,7 @@ ZPL;
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        $zpl = $this->generarZPL($producto);
+        $zpl = $this->generarZPLProductoCompleto($producto);
         $filename = "etiqueta_{$producto->sku}.zpl";
         $tempFile = storage_path("app/temp/" . $filename);
         
@@ -228,7 +305,7 @@ ZPL;
             abort(404, 'Este producto no tiene SKU.');
         }
 
-        $zpl = $this->generarZPL($producto);
+        $zpl = $this->generarZPLProductoCompleto($producto);
         $filename = "etiqueta_{$producto->sku}.zpl";
         $tempFile = storage_path("app/temp/" . $filename);
         
@@ -251,6 +328,72 @@ ZPL;
             
         } catch (\Exception $e) {
             // Si falla, al menos descarga el archivo
+            return response($zpl, 200)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        }
+    }
+
+    /**
+     * ✅ Opción 1 (unidad): Solo abre Direct Communication con el archivo cargado
+     */
+    public function abrirDirectCommUnidad(Unidad $unidad)
+    {
+        if (empty($unidad->codigo)) {
+            abort(404, 'Esta unidad no tiene código.');
+        }
+
+        $zpl = $this->generarZPLUnidad($unidad);
+        $filename = "etiqueta_{$unidad->codigo}.zpl";
+        $tempFile = storage_path("app/temp/" . $filename);
+
+        if (!is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        file_put_contents($tempFile, $zpl);
+
+        try {
+            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
+            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
+            pclose(popen("start /B $command", 'r'));
+
+            return redirect()->back()->with('success', '✅ Direct Communication abierto (unidad ' . $unidad->codigo . '). Presiona Ctrl+Enter para imprimir.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', '❌ Error al abrir Direct Communication: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ Opción 2 (unidad): Descarga el ZPL y abre Direct Communication
+     */
+    public function descargarYAbirUnidad(Unidad $unidad)
+    {
+        if (empty($unidad->codigo)) {
+            abort(404, 'Esta unidad no tiene código.');
+        }
+
+        $zpl = $this->generarZPLUnidad($unidad);
+        $filename = "etiqueta_{$unidad->codigo}.zpl";
+        $tempFile = storage_path("app/temp/" . $filename);
+
+        if (!is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        file_put_contents($tempFile, $zpl);
+
+        try {
+            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
+            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
+            pclose(popen("start /B $command", 'r'));
+
+            return response($zpl, 200)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+
+        } catch (\Exception $e) {
             return response($zpl, 200)
                 ->header('Content-Type', 'text/plain')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
