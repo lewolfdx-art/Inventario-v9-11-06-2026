@@ -73,6 +73,56 @@ class Producto extends Model
         'fecha_ultimo_mantenimiento' => 'date',
     ];
 
+    // ========== AUTO-SINCRONIZAR UNIDADES CON EL STOCK ==========
+    // Al guardar un producto, las unidades físicas (barcodes) se ajustan solas:
+    //  - Stock sube  → se crean las unidades que faltan (0SKU-NNN) como "disponibles"
+    //  - Stock baja   → las últimas unidades disponibles pasan a "salido" (para poder escanearse de vuelta)
+    protected static function booted()
+    {
+        static::saved(function (self $producto) {
+            $producto->sincronizarUnidades();
+        });
+    }
+
+    public function sincronizarUnidades()
+    {
+        $stock = max(0, (int) $this->stock);
+        $disponibles = $this->unidades()->where('estado', 'disponible')->count();
+
+        if ($stock === $disponibles) {
+            return;
+        }
+
+        if ($stock > $disponibles) {
+            // Faltan unidades disponibles → crearlas
+            if (empty($this->sku)) {
+                return;
+            }
+
+            $faltantes = $stock - $disponibles;
+            $contador = $this->unidades()->count();
+
+            for ($i = 0; $i < $faltantes; $i++) {
+                $contador++;
+                $codigo = '0' . $this->sku . '-' . str_pad((string) $contador, 3, '0', STR_PAD_LEFT);
+
+                Unidad::firstOrCreate(['codigo' => $codigo], [
+                    'producto_id' => $this->id,
+                    'estado'      => 'disponible',
+                ]);
+            }
+        } else {
+            // Sobran unidades disponibles → marcarlas como salidas (se regresan escaneándolas)
+            $exceso = $disponibles - $stock;
+
+            $this->unidades()
+                ->where('estado', 'disponible')
+                ->orderByDesc('codigo')
+                ->limit($exceso)
+                ->update(['estado' => 'salido']);
+        }
+    }
+
     // ========== CONFIGURACIÓN DE LOGS ==========
     
     protected static $logAttributes = [
