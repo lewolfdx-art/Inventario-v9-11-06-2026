@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/Maletin.php
 
 namespace App\Models;
@@ -25,6 +26,12 @@ class Maletin extends Model
         'version',
         'aprobado_por',
         'fecha_documento',
+        'entregado_por_nombres',
+        'entregado_por_dni',
+        'entregado_por_firma',
+        'recibido_por_nombres',
+        'recibido_por_dni',
+        'recibido_por_firma',
     ];
 
     protected $casts = [

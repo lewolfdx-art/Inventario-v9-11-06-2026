@@ -1,4 +1,5 @@
 <?php
+
 // app/Exports/MaletinChecklistExportPlantilla.php
 //
 // Carga la plantilla .xlsx (encabezado, logo, cuadro de revisión, datos del proyecto
@@ -17,26 +18,32 @@
 namespace App\Exports;
 
 use App\Models\Maletin;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class MaletinChecklistExportPlantilla
 {
     protected $maletin;
+
     protected string $plantilla;
 
     // Estructura de la plantilla "Formato_Maletines.xlsx":
     protected const FILA_CABECERA = 12;      // ITEM/CANT/CONTENIDO/SI/NO/ESTADO
+
     protected const FILA_INICIO = 13;         // primera fila de items
+
     protected const ULT = 'U';                // última columna (U = ESTADO)
 
     protected string $tituloSet = 'SET DE ACCESORIOS DE CONEXIÓN DE LA LÍNEA:';
+
     protected string $tituloAdicional = 'PAQUETE ADICIONAL DE ACCESORIOS:';
 
     public function __construct(Maletin $maletin, ?string $plantilla = null)
@@ -45,6 +52,7 @@ class MaletinChecklistExportPlantilla
 
         if ($plantilla !== null) {
             $this->plantilla = $plantilla;
+
             return;
         }
 
@@ -79,7 +87,7 @@ class MaletinChecklistExportPlantilla
         $num = (int) $num;
 
         if ($num >= 100) {
-            return intdiv($num, 100) . '.' . str_pad((string) ($num % 100), 2, '0', STR_PAD_LEFT);
+            return intdiv($num, 100).'.'.str_pad((string) ($num % 100), 2, '0', STR_PAD_LEFT);
         }
 
         return sprintf('%d.00', $num);
@@ -93,7 +101,7 @@ class MaletinChecklistExportPlantilla
     {
         $first = explode(':', $range)[0];
 
-        if (str_contains($range, ':') && !isset($ws->getMergeCells()[$range])) {
+        if (str_contains($range, ':') && ! isset($ws->getMergeCells()[$range])) {
             $ws->mergeCells($range);
         }
         if ($text !== null && $text !== '') {
@@ -122,13 +130,70 @@ class MaletinChecklistExportPlantilla
         $i = 0;
 
         foreach ($texto === '' ? [] : explode(' ', $texto) as $w) {
-            if ($i < 2 && mb_strlen(trim($out[$i] . ' ' . $w)) > $limites[$i]) {
+            if ($i < 2 && mb_strlen(trim($out[$i].' '.$w)) > $limites[$i]) {
                 $i++;
             }
-            $out[$i] = trim($out[$i] . ' ' . $w);
+            $out[$i] = trim($out[$i].' '.$w);
         }
 
         return $out;
+    }
+
+    /** Ancho aproximado (en píxeles) de un rango de columnas. */
+    protected function anchoColumnas($ws, string $desde, string $hasta): float
+    {
+        $total = 0;
+
+        foreach (range($desde, $hasta) as $col) {
+            $w = $ws->getColumnDimension($col)->getWidth();
+
+            if ($w <= 0) {
+                $w = 8.43;
+            }
+
+            $total += $w * 7 + 5;
+        }
+
+        return $total;
+    }
+
+    /** Incrusta la imagen de una firma guardada, ajustada al recuadro de firmas. */
+    protected function dibujarFirma($ws, ?string $ruta, string $celda, string $colIni = 'C', string $colFin = 'G'): void
+    {
+        if (blank($ruta)) {
+            return;
+        }
+
+        $absoluta = Storage::disk('public')->path($ruta);
+
+        if (! is_file($absoluta)) {
+            return;
+        }
+
+        $info = @getimagesize($absoluta);
+        $origW = (int) ($info[0] ?? 0);
+        $origH = (int) ($info[1] ?? 0);
+
+        if ($origW <= 0 || $origH <= 0) {
+            return;
+        }
+
+        $maxAlto = 50.0;
+        $maxAncho = min(260.0, max(60.0, $this->anchoColumnas($ws, $colIni, $colFin) - 10));
+
+        $escala = min($maxAlto / $origH, $maxAncho / $origW);
+        $ancho = (int) max(1, round($origW * $escala));
+        $alto = (int) max(1, round($origH * $escala));
+
+        $drawing = new Drawing;
+        $drawing->setPath($absoluta);
+        $drawing->setResizeProportional(false);
+        $drawing->setWidth($ancho);
+        $drawing->setHeight($alto);
+        $drawing->setCoordinates($celda);
+        $drawing->setOffsetX((int) max(0, round(($maxAncho - $ancho) / 2)));
+        $drawing->setOffsetY(3);
+        $drawing->setWorksheet($ws);
     }
 
     protected function buildSpreadsheet(): Spreadsheet
@@ -137,8 +202,8 @@ class MaletinChecklistExportPlantilla
         $center = Alignment::HORIZONTAL_CENTER;
         $ult = self::ULT;
 
-        if (!is_file($this->plantilla)) {
-            throw new \RuntimeException('No se encontró la plantilla: ' . $this->plantilla);
+        if (! is_file($this->plantilla)) {
+            throw new \RuntimeException('No se encontró la plantilla: '.$this->plantilla);
         }
 
         $ss = IOFactory::load($this->plantilla);
@@ -152,14 +217,14 @@ class MaletinChecklistExportPlantilla
         $ws->setTitle('Checklist');
 
         // ===== TÍTULO (F1) =====
-        $ws->setCellValueExplicit('F1', 'CHECK LIST DE ENTREGA - ' . Str::upper($maletin->nombre), DataType::TYPE_STRING);
+        $ws->setCellValueExplicit('F1', 'CHECK LIST DE ENTREGA - '.Str::upper($maletin->nombre), DataType::TYPE_STRING);
 
         // ===== CUADRO DE REVISIÓN desde el formulario =====
         $marca = ['font' => 'Arial', 'size' => 8, 'bold' => true, 'h' => $center, 'wrap' => true];
-        $this->box($ws, 'O1:Q2', "Revisado:\n" . ($maletin->revisado_por ?: 'RED'), $marca);
-        $this->box($ws, 'R1:U2', "Versión:\n" . ($maletin->version ?: '00'), $marca);
-        $this->box($ws, 'O3:Q4', "Aprobado:\n" . ($maletin->aprobado_por ?: 'GG'), $marca);
-        $this->box($ws, 'R3:U4', "Fecha:\n" . ($maletin->fecha_documento ?: '01/07/14'), $marca);
+        $this->box($ws, 'O1:Q2', "Revisado:\n".($maletin->revisado_por ?: 'RED'), $marca);
+        $this->box($ws, 'R1:U2', "Versión:\n".($maletin->version ?: '00'), $marca);
+        $this->box($ws, 'O3:Q4', "Aprobado:\n".($maletin->aprobado_por ?: 'GG'), $marca);
+        $this->box($ws, 'R3:U4', "Fecha:\n".($maletin->fecha_documento ?: '01/07/14'), $marca);
 
         // ===== DATOS DEL PROYECTO =====
         // NOMBRE DEL PROYECTO Y CLIENTE (etiqueta en A6)
@@ -212,7 +277,7 @@ class MaletinChecklistExportPlantilla
         }
         for ($r = $ini; $r <= $fin; $r++) {
             foreach (range('A', 'X') as $col) {
-                $ws->setCellValue($col . $r, null);
+                $ws->setCellValue($col.$r, null);
             }
         }
         $ws->getStyle("A{$ini}:X{$fin}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_NONE);
@@ -226,25 +291,25 @@ class MaletinChecklistExportPlantilla
             $size = $o['size'] ?? 9;
             $bold = $o['bold'] ?? false;
 
-            $ws->setCellValueExplicit('A' . $fila, (float) $numero, DataType::TYPE_NUMERIC);
-            $ws->getStyle('A' . $fila)->getNumberFormat()->setFormatCode('0.00');
-            $this->box($ws, 'A' . $fila, null, ['size' => 9, 'h' => $center]);
+            $ws->setCellValueExplicit('A'.$fila, (float) $numero, DataType::TYPE_NUMERIC);
+            $ws->getStyle('A'.$fila)->getNumberFormat()->setFormatCode('0.00');
+            $this->box($ws, 'A'.$fila, null, ['size' => 9, 'h' => $center]);
 
             if ($cant !== '' && $cant !== null) {
-                $ws->setCellValueExplicit('B' . $fila, (int) $cant, DataType::TYPE_NUMERIC);
-                $ws->getStyle('B' . $fila)->getNumberFormat()->setFormatCode('00');
+                $ws->setCellValueExplicit('B'.$fila, (int) $cant, DataType::TYPE_NUMERIC);
+                $ws->getStyle('B'.$fila)->getNumberFormat()->setFormatCode('00');
             }
-            $this->box($ws, 'B' . $fila, null, ['size' => $size, 'bold' => $bold, 'h' => $center]);
+            $this->box($ws, 'B'.$fila, null, ['size' => $size, 'bold' => $bold, 'h' => $center]);
 
             $desc = (string) $desc;
             $this->box($ws, "C{$fila}:R{$fila}", $desc, ['size' => $size, 'bold' => $bold, 'wrap' => true]);
 
-            $this->box($ws, 'S' . $fila, $estado === 'ok' ? 'X' : '', ['size' => 9, 'bold' => true, 'h' => $center]);
-            $this->box($ws, 'T' . $fila, ($estado === 'falta' || $estado === 'danado') ? 'X' : '', [
+            $this->box($ws, 'S'.$fila, $estado === 'ok' ? 'X' : '', ['size' => 9, 'bold' => true, 'h' => $center]);
+            $this->box($ws, 'T'.$fila, ($estado === 'falta' || $estado === 'danado') ? 'X' : '', [
                 'size' => 9, 'bold' => true, 'h' => $center, 'color' => 'FFC00000',
             ]);
 
-            $this->box($ws, 'U' . $fila, $estado === null ? '' : $this->estadoLabel($estado), [
+            $this->box($ws, 'U'.$fila, $estado === null ? '' : $this->estadoLabel($estado), [
                 'size' => 8, 'bold' => true, 'h' => $center, 'color' => $this->estadoLabelColor($estado),
             ]);
 
@@ -255,9 +320,9 @@ class MaletinChecklistExportPlantilla
 
         // Fila de sección (3.00 / 4.00): A número | B:U título
         $section = function ($numero, $titulo) use ($ws, &$fila, $center, $ult) {
-            $ws->setCellValueExplicit('A' . $fila, (float) $numero, DataType::TYPE_NUMERIC);
-            $ws->getStyle('A' . $fila)->getNumberFormat()->setFormatCode('0.00');
-            $this->box($ws, 'A' . $fila, null, ['size' => 9, 'h' => $center]);
+            $ws->setCellValueExplicit('A'.$fila, (float) $numero, DataType::TYPE_NUMERIC);
+            $ws->getStyle('A'.$fila)->getNumberFormat()->setFormatCode('0.00');
+            $this->box($ws, 'A'.$fila, null, ['size' => 9, 'h' => $center]);
             $this->box($ws, "B{$fila}:{$ult}{$fila}", $titulo, ['size' => 9, 'bold' => true, 'h' => $center, 'wrap' => true]);
             $ws->getRowDimension($fila)->setRowHeight(17.25);
             $fila++;
@@ -274,7 +339,7 @@ class MaletinChecklistExportPlantilla
         if ($maletin->accesoriosSet->isNotEmpty()) {
             $section(3, $this->tituloSet);
             foreach ($maletin->accesoriosSet as $a) {
-                $push($this->formatItemNumber($a->item_numero), $a->cantidad, ' - ' . $a->descripcion, $a->estado_devolucion);
+                $push($this->formatItemNumber($a->item_numero), $a->cantidad, ' - '.$a->descripcion, $a->estado_devolucion);
             }
         }
 
@@ -288,7 +353,7 @@ class MaletinChecklistExportPlantilla
             $push(
                 $this->formatItemNumber($a->item_numero),
                 $desc === '' ? '' : $a->cantidad,
-                $desc === '' ? '' : ' - ' . $a->descripcion,
+                $desc === '' ? '' : ' - '.$a->descripcion,
                 $a->estado_devolucion,
                 ['height' => 15]
             );
@@ -317,23 +382,45 @@ class MaletinChecklistExportPlantilla
         $lineas = $this->splitObs($maletin->observaciones);
         $this->box($ws, "A{$obs}:E{$obs}", 'OBSERVACIONES:', ['size' => 11, 'bold' => true]);
         $this->box($ws, "F{$obs}:{$ult}{$obs}", $lineas[0], ['wrap' => true]);
-        $this->box($ws, 'A' . ($obs + 1) . ":{$ult}" . ($obs + 1), $lineas[1], ['wrap' => true]);
-        $this->box($ws, 'A' . ($obs + 2) . ":{$ult}" . ($obs + 2), $lineas[2], ['wrap' => true]);
+        $this->box($ws, 'A'.($obs + 1).":{$ult}".($obs + 1), $lineas[1], ['wrap' => true]);
+        $this->box($ws, 'A'.($obs + 2).":{$ult}".($obs + 2), $lineas[2], ['wrap' => true]);
 
         $ws->getRowDimension($obs)->setRowHeight(18);
         $ws->getRowDimension($obs + 1)->setRowHeight(18);
         $ws->getRowDimension($obs + 2)->setRowHeight(max(18, ceil(mb_strlen($lineas[2]) / 115) * 12 + 6));
 
-        $ws->getStyle("A{$obs}:{$ult}" . ($obs + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR);
-        $ws->getStyle("A{$obs}:{$ult}" . ($obs + 2))->getBorders()->getOutline()->setBorderStyle(Border::BORDER_THIN);
+        $ws->getStyle("A{$obs}:{$ult}".($obs + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR);
+        $ws->getStyle("A{$obs}:{$ult}".($obs + 2))->getBorders()->getOutline()->setBorderStyle(Border::BORDER_THIN);
 
         // ===== FIRMAS =====
-        $f = $obs + 3;
-        for ($i = 0; $i < 4; $i++) {      // espacio para firmar (4 filas de 12)
-            $ws->getRowDimension($f + $i)->setRowHeight(12);
-        }
-        $f += 4;
+        // Recuadro para colocar la firma: celdas combinadas (C:G / O:S) con
+        // borde entrecortado, para que el usuario sepa dónde poner la imagen.
+        $iniFirma = $obs + 3;
+        $finFirma = $obs + 5;          // 3 filas (ej. 53-55)
 
+        for ($r = $iniFirma; $r <= $finFirma; $r++) {
+            $ws->getRowDimension($r)->setRowHeight(14);
+        }
+
+        foreach ([['C', 'G'], ['O', 'S']] as [$colIni, $colFin]) {
+            $rango = "{$colIni}{$iniFirma}:{$colFin}{$finFirma}";
+
+            if (! isset($ws->getMergeCells()[$rango])) {
+                $ws->mergeCells($rango);
+            }
+
+            $ws->getStyle($rango)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_DASHED);
+            $ws->getStyle($rango)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
+
+        // Imágenes de firma dentro del recuadro
+        $this->dibujarFirma($ws, $maletin->entregado_por_firma, "C{$iniFirma}", 'C', 'G');
+        $this->dibujarFirma($ws, $maletin->recibido_por_firma, "O{$iniFirma}", 'O', 'S');
+
+        // Rótulos debajo del recuadro
+        $f = $finFirma + 1;
         $this->box($ws, "C{$f}:G{$f}", 'ENTREGADO POR', ['size' => 10, 'h' => $center]);
         $this->box($ws, "O{$f}:S{$f}", 'RECIBIDO POR', ['size' => 10, 'h' => $center]);
         $ws->getRowDimension($f)->setRowHeight(15);
@@ -341,21 +428,16 @@ class MaletinChecklistExportPlantilla
         $f++;
         $this->box($ws, "A{$f}:B{$f}", 'N. y A.', ['size' => 10, 'shrink' => true]);
         $this->box($ws, "I{$f}:N{$f}", 'N. y A.', ['size' => 10, 'h' => Alignment::HORIZONTAL_RIGHT]);
-        $this->box($ws, "C{$f}:G{$f}", '', ['size' => 10, 'h' => $center]);
-        $this->box($ws, "O{$f}:S{$f}", '', ['size' => 10, 'h' => $center]);
+        $this->box($ws, "C{$f}:G{$f}", (string) ($maletin->entregado_por_nombres ?? ''), ['size' => 9, 'h' => $center]);
+        $this->box($ws, "O{$f}:S{$f}", (string) ($maletin->recibido_por_nombres ?? ''), ['size' => 9, 'h' => $center]);
         $ws->getRowDimension($f)->setRowHeight(13.5);
 
         $f++;
         $this->box($ws, "A{$f}:B{$f}", 'DNI N°', ['size' => 10, 'shrink' => true]);
         $this->box($ws, "I{$f}:N{$f}", 'DNI N°', ['size' => 10, 'h' => Alignment::HORIZONTAL_RIGHT]);
-        $this->box($ws, "C{$f}:G{$f}", '', ['size' => 10, 'h' => $center]);
-        $this->box($ws, "O{$f}:S{$f}", '', ['size' => 10, 'h' => $center]);
+        $this->box($ws, "C{$f}:G{$f}", (string) ($maletin->entregado_por_dni ?? ''), ['size' => 9, 'h' => $center]);
+        $this->box($ws, "O{$f}:S{$f}", (string) ($maletin->recibido_por_dni ?? ''), ['size' => 9, 'h' => $center]);
         $ws->getRowDimension($f)->setRowHeight(13.5);
-
-        // Recuadro de firmas: solo la línea superior (ENTREGADO POR / RECIBIDO POR)
-        $signHeader = $f - 2;
-        $ws->getStyle("C{$signHeader}:G{$signHeader}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN);
-        $ws->getStyle("O{$signHeader}:S{$signHeader}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN);
 
         // ===== IMPRESIÓN: A4 vertical, ajustar a 1 página de ancho =====
         $ws->getPageSetup()
@@ -376,6 +458,7 @@ class MaletinChecklistExportPlantilla
 
         ob_start();
         $writer->save('php://output');
+
         return ob_get_clean();
     }
 
@@ -383,7 +466,7 @@ class MaletinChecklistExportPlantilla
     {
         return response()->streamDownload(function () {
             echo $this->getContent();
-        }, 'checklist_' . Str::slug($this->maletin->nombre) . '_' . now()->format('Ymd_His') . '.xlsx', [
+        }, 'checklist_'.Str::slug($this->maletin->nombre).'_'.now()->format('Ymd_His').'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }

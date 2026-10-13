@@ -3,9 +3,10 @@
 namespace App\Filament\Resources\MaletinResource\Pages;
 
 use App\Filament\Resources\MaletinResource;
+use App\Support\Firma;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditMaletin extends EditRecord
 {
@@ -27,18 +28,18 @@ class EditMaletin extends EditRecord
     public function mount($record): void
     {
         parent::mount($record);
-        
+
         // Verificar si hay una notificación en sesión (desde Producto)
         if (session()->has('filament_notification')) {
             $notification = session()->get('filament_notification');
-            
+
             Notification::make()
                 ->title($notification['title'] ?? 'Información')
                 ->body($notification['body'] ?? '')
                 ->{$notification['status'] ?? 'info'}()
                 ->persistent()
                 ->send();
-            
+
             // Limpiar la sesión después de mostrar la notificación
             session()->forget('filament_notification');
         }
@@ -50,7 +51,7 @@ class EditMaletin extends EditRecord
         if (isset($data['componentesEquipo']) && is_array($data['componentesEquipo'])) {
             $filtered = [];
             foreach ($data['componentesEquipo'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -60,11 +61,11 @@ class EditMaletin extends EditRecord
             }
             $data['componentesEquipo'] = $filtered;
         }
-        
+
         if (isset($data['accesoriosSet']) && is_array($data['accesoriosSet'])) {
             $filtered = [];
             foreach ($data['accesoriosSet'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -74,11 +75,11 @@ class EditMaletin extends EditRecord
             }
             $data['accesoriosSet'] = $filtered;
         }
-        
+
         if (isset($data['accesoriosAdicionales']) && is_array($data['accesoriosAdicionales'])) {
             $filtered = [];
             foreach ($data['accesoriosAdicionales'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -88,7 +89,26 @@ class EditMaletin extends EditRecord
             }
             $data['accesoriosAdicionales'] = $filtered;
         }
-        
+
+        // ✅ Guardar las firmas capturadas (data URL -> archivo)
+        $record = $this->getRecord();
+
+        if (array_key_exists('entregado_por_firma', $data)) {
+            $data['entregado_por_firma'] = Firma::guardar(
+                $data['entregado_por_firma'],
+                'firmas/maletines',
+                $record->entregado_por_firma
+            );
+        }
+
+        if (array_key_exists('recibido_por_firma', $data)) {
+            $data['recibido_por_firma'] = Firma::guardar(
+                $data['recibido_por_firma'],
+                'firmas/maletines',
+                $record->recibido_por_firma
+            );
+        }
+
         return $data;
     }
 
@@ -103,11 +123,11 @@ class EditMaletin extends EditRecord
     public function getTitle(): string
     {
         $record = $this->getRecord();
-        
+
         if ($record) {
-            return 'Editar Maletín: ' . $record->nombre;
+            return 'Editar Maletín: '.$record->nombre;
         }
-        
+
         return parent::getTitle();
     }
 }

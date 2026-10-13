@@ -1,28 +1,41 @@
 <?php
+
 // app/Filament/Resources/MaletinResource.php
 
 namespace App\Filament\Resources;
 
+use App\Exports\MaletinChecklistExportPlantilla;
+use App\Exports\MaletinChecklistPdfExport;
+use App\Filament\Forms\Components\FirmaPad;
 use App\Filament\Resources\MaletinResource\Pages;
+use App\Imports\MaletinImport;
+use App\Models\Categoria;
 use App\Models\Maletin;
+use App\Models\Producto;
+use App\Models\Subcategoria;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
-use Filament\Notifications\Notification;
-use Illuminate\Support\HtmlString;
+use Filament\Tables\Table;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class MaletinResource extends Resource
 {
     protected static ?string $model = Maletin::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+
     protected static ?string $navigationGroup = 'Gestion de Maletines';
+
     protected static ?string $pluralLabel = 'Maletines';
+
     protected static ?string $label = 'Maletin';
+
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -31,101 +44,147 @@ class MaletinResource extends Resource
             ->schema([
                 // ==================== SECCION 1: INFORMACION GENERAL ====================
                 Forms\Components\Section::make('INFORMACION GENERAL')
-                ->schema([
-                    Forms\Components\TextInput::make('nombre')
-                        ->label('Nombre del Maletin')
-                        ->required()
-                        ->maxLength(255)
-                        ->placeholder('Ingrese el nombre del maletin')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\TextInput::make('proyecto_cliente')
-                        ->label('Nombre del Proyecto y Cliente')
-                        ->maxLength(255)
-                        ->placeholder('Ej. ISA CBA 3000')
-                        ->columnSpan(2),
-                    
-                    Forms\Components\TextInput::make('responsable_solicitante')
-                        ->label('Responsable Solicitante')
-                        ->maxLength(255)
-                        ->placeholder('Nombre de quien solicita')
-                        ->columnSpan(2),
-                    
-                    Forms\Components\Placeholder::make('fecha_creacion')
-                        ->label('Fecha de Creacion')
-                        ->content(now()->format('d/m/Y H:i'))
-                        ->helperText('La fecha se genera automaticamente')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\Select::make('estado')
-                        ->label('Estado del Maletin')
-                        ->options([
-                            'activo' => 'Activo',
-                            'prestado' => 'Prestado',
-                            'devuelto' => 'Devuelto',
-                            'mantenimiento' => 'En Mantenimiento',
-                        ])
-                        ->default('activo')
-                        ->required()
-                        ->columnSpan(2),
-                    
-                    // ⏬ FECHA DE PEDIDO
-                    Forms\Components\DatePicker::make('fecha_solicitud')
-                        ->label('Fecha de Pedido')
-                        ->native(false)
-                        ->helperText('Se completa automáticamente al importar el checklist')
-                        ->columnSpan(2),
-                    
-                    // ⏬ FECHA DE DEVOLUCIÓN (se llena automáticamente al importar desde Excel)
-                    Forms\Components\DatePicker::make('fecha_devolucion')
-                        ->label('Fecha de Devolucion')
-                        ->native(false)
-                        ->helperText('Se completa automáticamente al importar el checklist de devolucion')
-                        ->columnSpan(2),
-                    
-                    Forms\Components\DatePicker::make('fecha_atencion')
-                        ->label('Fecha de Atencion')
-                        ->native(false)
-                        ->helperText('Se completa automáticamente al importar el checklist')
-                        ->columnSpan(2),
-                    
-                    // ⏬ CUADRO DE REVISIÓN (encabezado del checklist)
-                    Forms\Components\TextInput::make('revisado_por')
-                        ->label('Revisado')
-                        ->default('RED')
-                        ->placeholder('Ej. RED')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\TextInput::make('version')
-                        ->label('Version')
-                        ->default('00')
-                        ->placeholder('Ej. 00')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\TextInput::make('aprobado_por')
-                        ->label('Aprobado')
-                        ->default('GG')
-                        ->placeholder('Ej. GG')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\TextInput::make('fecha_documento')
-                        ->label('Fecha del Documento')
-                        ->default('01/07/14')
-                        ->placeholder('Ej. 01/07/14')
-                        ->columnSpan(1),
-                    
-                    Forms\Components\Select::make('producto_id')
-                        ->label('Asociar a Producto (Manual)')
-                        ->relationship('productos', 'nombre')
-                        ->multiple()
-                        ->searchable()
-                        ->preload()
-                        ->placeholder('Seleccione uno o más productos...')
-                        ->helperText('Seleccione el/los producto(s) que usarán este maletín')
-                        ->columnSpan(2),
-                ])->columns(2),
-                
-                // ==================== SECCION 2: COMPONENTES DEL EQUIPO ====================
+                    ->schema([
+                        Forms\Components\TextInput::make('nombre')
+                            ->label('Nombre del Maletin')
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder('Ingrese el nombre del maletin')
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('proyecto_cliente')
+                            ->label('Nombre del Proyecto y Cliente')
+                            ->maxLength(255)
+                            ->placeholder('Ej. ISA CBA 3000')
+                            ->columnSpan(2),
+
+                        Forms\Components\TextInput::make('responsable_solicitante')
+                            ->label('Responsable Solicitante')
+                            ->maxLength(255)
+                            ->placeholder('Nombre de quien solicita')
+                            ->columnSpan(2),
+
+                        Forms\Components\Placeholder::make('fecha_creacion')
+                            ->label('Fecha de Creacion')
+                            ->content(now()->format('d/m/Y H:i'))
+                            ->helperText('La fecha se genera automaticamente')
+                            ->columnSpan(1),
+
+                        Forms\Components\Select::make('estado')
+                            ->label('Estado del Maletin')
+                            ->options([
+                                'activo' => 'Activo',
+                                'prestado' => 'Prestado',
+                                'devuelto' => 'Devuelto',
+                                'mantenimiento' => 'En Mantenimiento',
+                            ])
+                            ->default('activo')
+                            ->required()
+                            ->columnSpan(2),
+
+                        // ⏬ FECHA DE PEDIDO
+                        Forms\Components\DatePicker::make('fecha_solicitud')
+                            ->label('Fecha de Pedido')
+                            ->native(false)
+                            ->helperText('Se completa automáticamente al importar el checklist')
+                            ->columnSpan(2),
+
+                        // ⏬ FECHA DE DEVOLUCIÓN (se llena automáticamente al importar desde Excel)
+                        Forms\Components\DatePicker::make('fecha_devolucion')
+                            ->label('Fecha de Devolucion')
+                            ->native(false)
+                            ->helperText('Se completa automáticamente al importar el checklist de devolucion')
+                            ->columnSpan(2),
+
+                        Forms\Components\DatePicker::make('fecha_atencion')
+                            ->label('Fecha de Atencion')
+                            ->native(false)
+                            ->helperText('Se completa automáticamente al importar el checklist')
+                            ->columnSpan(2),
+
+                        // ⏬ CUADRO DE REVISIÓN (encabezado del checklist)
+                        Forms\Components\TextInput::make('revisado_por')
+                            ->label('Revisado')
+                            ->default('RED')
+                            ->placeholder('Ej. RED')
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('version')
+                            ->label('Version')
+                            ->default('00')
+                            ->placeholder('Ej. 00')
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('aprobado_por')
+                            ->label('Aprobado')
+                            ->default('GG')
+                            ->placeholder('Ej. GG')
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('fecha_documento')
+                            ->label('Fecha del Documento')
+                            ->default('01/07/14')
+                            ->placeholder('Ej. 01/07/14')
+                            ->columnSpan(1),
+
+                        Forms\Components\Select::make('producto_id')
+                            ->label('Asociar a Producto (Manual)')
+                            ->relationship('productos', 'nombre')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Seleccione uno o más productos...')
+                            ->helperText('Seleccione el/los producto(s) que usarán este maletín')
+                            ->columnSpan(2),
+                    ])->columns(2),
+
+                // ==================== SECCION 2: FIRMAS DE ENTREGA ====================
+                Forms\Components\Section::make('FIRMAS DE ENTREGA')
+                    ->description('Nombres, DNI y firma de quien entrega y de quien recibe el maletín')
+                    ->schema([
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\Group::make()
+                                    ->schema([
+                                        Forms\Components\TextInput::make('entregado_por_nombres')
+                                            ->label('ENTREGADO POR - N. y A. (Nombres y Apellidos)')
+                                            ->maxLength(150)
+                                            ->placeholder('Nombres y apellidos de quien entrega'),
+
+                                        Forms\Components\TextInput::make('entregado_por_dni')
+                                            ->label('ENTREGADO POR - DNI N°')
+                                            ->numeric()
+                                            ->length(8)
+                                            ->rule('digits:8')
+                                            ->helperText('Debe tener exactamente 8 dígitos'),
+
+                                        FirmaPad::make('entregado_por_firma')
+                                            ->label('ENTREGADO POR - Firma')
+                                            ->helperText('Dibuja la firma o pégala desde el portapapeles (Ctrl+V)'),
+                                    ]),
+
+                                Forms\Components\Group::make()
+                                    ->schema([
+                                        Forms\Components\TextInput::make('recibido_por_nombres')
+                                            ->label('RECIBIDO POR - N. y A. (Nombres y Apellidos)')
+                                            ->maxLength(150)
+                                            ->placeholder('Nombres y apellidos de quien recibe'),
+
+                                        Forms\Components\TextInput::make('recibido_por_dni')
+                                            ->label('RECIBIDO POR - DNI N°')
+                                            ->numeric()
+                                            ->length(8)
+                                            ->rule('digits:8')
+                                            ->helperText('Debe tener exactamente 8 dígitos'),
+
+                                        FirmaPad::make('recibido_por_firma')
+                                            ->label('RECIBIDO POR - Firma')
+                                            ->helperText('Dibuja la firma o pégala desde el portapapeles (Ctrl+V)'),
+                                    ]),
+                            ]),
+                    ])->columns(1),
+
+                // ==================== SECCION 3: COMPONENTES DEL EQUIPO ====================
                 Forms\Components\Section::make('COMPONENTES DEL EQUIPO')
                     ->description('Componentes principales que componen el equipo')
                     ->schema([
@@ -136,11 +195,11 @@ class MaletinResource extends Resource
                                 Forms\Components\TextInput::make('item_numero')
                                     ->label('Item')
                                     ->numeric()
-                                    ->default(fn($livewire) => self::getNextItemNumber($livewire, 'componentes'))
+                                    ->default(fn ($livewire) => self::getNextItemNumber($livewire, 'componentes'))
                                     ->disabled()
                                     ->dehydrated(true)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('cantidad')
                                     ->label('Cant.')
                                     ->numeric()
@@ -148,20 +207,20 @@ class MaletinResource extends Resource
                                     ->minValue(0)
                                     ->required()
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('descripcion')
                                     ->label('Contenido')
                                     ->required(false)
                                     ->maxLength(500)
                                     ->placeholder('Ej: EQUIPO DE PRUEBAS: OMICRON CMC356 S/N ML142W')
                                     ->columnSpan(2),
-                                
+
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\Select::make('estado_devolucion')
                                     ->label('Estado Devol.')
                                     ->options([
@@ -182,10 +241,11 @@ class MaletinResource extends Resource
                             ->maxItems(50)
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
                                 $data['item_numero'] = $data['item_numero'] ?? 0;
+
                                 return $data;
                             }),
                     ]),
-                
+
                 // ==================== SECCION 3: ACCESORIOS EN LA MALETA ====================
                 Forms\Components\Section::make('ACCESORIOS EN LA MALETA')
                     ->description('Lista de accesorios que componen el maletin')
@@ -197,11 +257,11 @@ class MaletinResource extends Resource
                                 Forms\Components\TextInput::make('item_numero')
                                     ->label('Item')
                                     ->numeric()
-                                    ->default(fn($livewire) => self::getNextItemNumber($livewire, 'set'))
+                                    ->default(fn ($livewire) => self::getNextItemNumber($livewire, 'set'))
                                     ->disabled()
                                     ->dehydrated(true)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('cantidad')
                                     ->label('Cant.')
                                     ->numeric()
@@ -209,20 +269,20 @@ class MaletinResource extends Resource
                                     ->minValue(0)
                                     ->required()
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('descripcion')
                                     ->label('Contenido')
                                     ->required(false)
                                     ->maxLength(500)
                                     ->placeholder('Descripcion del accesorio...')
                                     ->columnSpan(2),
-                                
+
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\Select::make('estado_devolucion')
                                     ->label('Estado Devol.')
                                     ->options([
@@ -243,10 +303,11 @@ class MaletinResource extends Resource
                             ->maxItems(50)
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
                                 $data['item_numero'] = $data['item_numero'] ?? 0;
+
                                 return $data;
                             }),
                     ]),
-                
+
                 // ==================== SECCION 4: PAQUETE ADICIONAL DE ACCESORIOS ====================
                 Forms\Components\Section::make('PAQUETE ADICIONAL DE ACCESORIOS')
                     ->description('Accesorios adicionales')
@@ -258,11 +319,11 @@ class MaletinResource extends Resource
                                 Forms\Components\TextInput::make('item_numero')
                                     ->label('Item')
                                     ->numeric()
-                                    ->default(fn($livewire) => self::getNextItemNumber($livewire, 'adicional'))
+                                    ->default(fn ($livewire) => self::getNextItemNumber($livewire, 'adicional'))
                                     ->disabled()
                                     ->dehydrated(true)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('cantidad')
                                     ->label('Cant.')
                                     ->numeric()
@@ -270,20 +331,20 @@ class MaletinResource extends Resource
                                     ->minValue(0)
                                     ->required()
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('descripcion')
                                     ->label('Contenido')
                                     ->required(false)
                                     ->maxLength(500)
                                     ->placeholder('Descripcion del accesorio adicional...')
                                     ->columnSpan(2),
-                                
+
                                 Forms\Components\Toggle::make('incluido')
                                     ->label('Incluido')
                                     ->default(false)
                                     ->inline(false)
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\Select::make('estado_devolucion')
                                     ->label('Estado Devol.')
                                     ->options([
@@ -304,10 +365,11 @@ class MaletinResource extends Resource
                             ->maxItems(50)
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
                                 $data['item_numero'] = $data['item_numero'] ?? 0;
+
                                 return $data;
                             }),
                     ]),
-                
+
                 // ==================== SECCION 5: OBSERVACIONES ====================
                 Forms\Components\Section::make('OBSERVACIONES')
                     ->schema([
@@ -329,10 +391,10 @@ class MaletinResource extends Resource
             ->paginated(true)
             ->selectable(true)
             ->searchable()
-            
+
             ->headerActions([
                 // Botón de importación desde Excel
-                Tables\Actions\Action::make('importar_excel')
+                Action::make('importar_excel')
                     ->label('Importar desde Excel')
                     ->icon('heroicon-o-cloud-arrow-up')
                     ->color('success')
@@ -344,7 +406,7 @@ class MaletinResource extends Resource
                             ->required()
                             ->acceptedFileTypes([
                                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                'application/vnd.ms-excel'
+                                'application/vnd.ms-excel',
                             ])
                             ->maxSize(10240)
                             ->columnSpanFull()
@@ -354,74 +416,78 @@ class MaletinResource extends Resource
                     ->action(function (array $data) {
                         try {
                             $archivo = $data['archivo'];
-                            
+
                             if (is_array($archivo)) {
                                 $archivo = $archivo[0] ?? null;
                             }
-                            
-                            if (!$archivo instanceof \Illuminate\Http\UploadedFile) {
+
+                            if (! $archivo instanceof UploadedFile) {
                                 throw new \Exception('El archivo no es válido.');
                             }
-                            
-                            if (!$archivo->isValid()) {
+
+                            if (! $archivo->isValid()) {
                                 throw new \Exception('El archivo no es válido o está corrupto.');
                             }
-                            
+
                             $tempPath = $archivo->getRealPath();
-                            
-                            if (!file_exists($tempPath)) {
-                                throw new \Exception('El archivo temporal no existe: ' . $tempPath);
+
+                            if (! file_exists($tempPath)) {
+                                throw new \Exception('El archivo temporal no existe: '.$tempPath);
                             }
-                            
+
                             // 👇 CREAR IMPORTADOR CON cleanExisting = true
-                            $import = new \App\Imports\MaletinImport(
+                            $import = new MaletinImport(
                                 $data['categoria_id'] ?? null,
                                 $data['subcategoria_id'] ?? null,
                                 true // 👈 Esto limpia los datos existentes
                             );
-                            
+
+                            // Firmas embebidas en el Excel (objetos de dibujo)
+                            $import->setFirmasImagenes(MaletinImport::extraerImagenesFirmas($tempPath));
+
                             $import->import($tempPath);
-                            
+
                             Notification::make()
                                 ->title('✅ Importación exitosa')
                                 ->body('El maletín ha sido importado correctamente')
                                 ->success()
                                 ->send();
-                            
+
                             return redirect()->back();
-                            
+
                         } catch (\Exception $e) {
                             Notification::make()
                                 ->title('❌ Error al importar')
-                                ->body('Ocurrió un error: ' . $e->getMessage())
+                                ->body('Ocurrió un error: '.$e->getMessage())
                                 ->danger()
                                 ->send();
-                            
-                            Log::error('Error al importar Excel: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+
+                            Log::error('Error al importar Excel: '.$e->getMessage()."\n".$e->getTraceAsString());
                         }
                     })
                     ->modalSubmitActionLabel('Importar')
                     ->modalCancelActionLabel('Cancelar'),
             ])
-            
+
             ->columns([
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre del Maletin')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 Tables\Columns\TextColumn::make('productos_asociados')
                     ->label('Producto Asociado')
                     ->getStateUsing(function ($record) {
                         if ($record->productos->isNotEmpty()) {
-                            return '✅ ' . $record->productos->pluck('nombre')->implode(', ');
+                            return '✅ '.$record->productos->pluck('nombre')->implode(', ');
                         }
+
                         return '❌ Sin asociar';
                     })
                     ->badge()
@@ -430,13 +496,13 @@ class MaletinResource extends Resource
                     ->url(fn ($record) => $record->productos->isNotEmpty() ? route('filament.admin.resources.productos.edit', $record->productos->first()) : null)
                     ->openUrlInNewTab(false)
                     ->tooltip('Haz clic para ir al producto asociado'),
-                
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Fecha Creacion')
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ✅ COLUMNA: TOTAL EQUIPO (Suma de todos los items)
                 Tables\Columns\TextColumn::make('total_equipo')
                     ->label('Total Equipo')
@@ -445,33 +511,36 @@ class MaletinResource extends Resource
                         $accesorios = $record->accesoriosSet->where('incluido', true)->count();
                         $adicionales = $record->accesoriosAdicionales->where('incluido', true)->count();
                         $total = $componentes + $accesorios + $adicionales;
-                        return $total . ' elementos en total';
+
+                        return $total.' elementos en total';
                     })
                     ->badge()
                     ->color('success')
                     ->toggleable(isToggledHiddenByDefault: false)
                     ->tooltip('Suma total de componentes + accesorios + adicionales'),
-                
+
                 Tables\Columns\TextColumn::make('componentes_contador')
                     ->label('Componentes')
                     ->getStateUsing(function ($record) {
                         $count = $record->componentesEquipo->where('incluido', true)->count();
-                        return $count . ' componente(s)';
+
+                        return $count.' componente(s)';
                     })
                     ->badge()
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 Tables\Columns\TextColumn::make('accesorios_contador')
                     ->label('Accesorios')
                     ->getStateUsing(function ($record) {
                         $count = $record->accesoriosSet->where('incluido', true)->count();
-                        return $count . ' accesorio(s)';
+
+                        return $count.' accesorio(s)';
                     })
                     ->badge()
                     ->color('info')
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 Tables\Columns\TextColumn::make('accesorios_resumen')
                     ->label('Resumen Accesorios')
                     ->getStateUsing(function ($record) {
@@ -482,12 +551,13 @@ class MaletinResource extends Resource
                                 return $item->descripcion;
                             })->implode(' | ');
                         $total = $record->accesoriosSet->where('incluido', true)->count();
-                        return $total > 3 ? $items . ' ...' : ($items ?: 'Sin accesorios');
+
+                        return $total > 3 ? $items.' ...' : ($items ?: 'Sin accesorios');
                     })
                     ->limit(80)
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 Tables\Columns\TextColumn::make('componentes_resumen')
                     ->label('Resumen Componentes')
                     ->getStateUsing(function ($record) {
@@ -498,22 +568,24 @@ class MaletinResource extends Resource
                                 return $item->descripcion;
                             })->implode(' | ');
                         $total = $record->componentesEquipo->where('incluido', true)->count();
-                        return $total > 3 ? $items . ' ...' : ($items ?: 'Sin componentes');
+
+                        return $total > 3 ? $items.' ...' : ($items ?: 'Sin componentes');
                     })
                     ->limit(80)
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 Tables\Columns\TextColumn::make('adicionales_contador')
                     ->label('Adicionales')
                     ->getStateUsing(function ($record) {
                         $count = $record->accesoriosAdicionales->where('incluido', true)->count();
-                        return $count . ' adicional(es)';
+
+                        return $count.' adicional(es)';
                     })
                     ->badge()
                     ->color('warning')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 Tables\Columns\TextColumn::make('adicionales_resumen')
                     ->label('Resumen Adicionales')
                     ->getStateUsing(function ($record) {
@@ -524,12 +596,13 @@ class MaletinResource extends Resource
                                 return $item->descripcion;
                             })->implode(' | ');
                         $total = $record->accesoriosAdicionales->where('incluido', true)->count();
-                        return $total > 3 ? $items . ' ...' : ($items ?: 'Sin adicionales');
+
+                        return $total > 3 ? $items.' ...' : ($items ?: 'Sin adicionales');
                     })
                     ->limit(80)
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 Tables\Columns\TextColumn::make('estado')
                     ->label('Estado')
                     ->badge()
@@ -548,7 +621,7 @@ class MaletinResource extends Resource
                         default => (string) $state,
                     })
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ⏬ FECHA DE DEVOLUCIÓN
                 Tables\Columns\TextColumn::make('fecha_devolucion')
                     ->label('Fecha Devolucion')
@@ -556,7 +629,7 @@ class MaletinResource extends Resource
                     ->sortable()
                     ->placeholder('Sin devolver')
                     ->toggleable(isToggledHiddenByDefault: false),
-                
+
                 // ⏬ FECHA DE ATENCION
                 Tables\Columns\TextColumn::make('fecha_atencion')
                     ->label('Fecha Atencion')
@@ -564,7 +637,7 @@ class MaletinResource extends Resource
                     ->sortable()
                     ->placeholder('Sin atención')
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 // ⏬ RESUMEN DE ESTADO DE DEVOLUCION POR ITEM
                 Tables\Columns\TextColumn::make('devolucion_resumen')
                     ->label('Estado de Devolucion')
@@ -573,16 +646,16 @@ class MaletinResource extends Resource
                             ->merge($record->componentesEquipo)
                             ->merge($record->accesoriosSet)
                             ->merge($record->accesoriosAdicionales);
-                        
+
                         $ok = $items->where('estado_devolucion', 'ok')->count();
                         $faltas = $items->where('estado_devolucion', 'falta')->count();
                         $danados = $items->where('estado_devolucion', 'danado')->count();
-                        
+
                         if ($faltas === 0 && $danados === 0) {
-                            return '✅ ' . $ok . ' OK';
+                            return '✅ '.$ok.' OK';
                         }
-                        
-                        return '✅ ' . $ok . ' OK | ⚠️ ' . $faltas . ' falta | ❌ ' . $danados . ' dañado';
+
+                        return '✅ '.$ok.' OK | ⚠️ '.$faltas.' falta | ❌ '.$danados.' dañado';
                     })
                     ->badge()
                     ->color(fn ($state) => str_contains($state, '❌')
@@ -591,7 +664,7 @@ class MaletinResource extends Resource
                     ->tooltip('Resumen del estado de devolucion de equipos y accesorios')
                     ->toggleable(isToggledHiddenByDefault: false),
             ])
-            
+
             ->filters([
                 Tables\Filters\SelectFilter::make('estado')
                     ->label('Estado')
@@ -601,7 +674,7 @@ class MaletinResource extends Resource
                         'devuelto' => 'Devuelto',
                         'mantenimiento' => 'En Mantenimiento',
                     ]),
-                
+
                 Tables\Filters\Filter::make('created_at')
                     ->label('Fecha de Creacion')
                     ->form([
@@ -616,27 +689,27 @@ class MaletinResource extends Resource
                         return $query
                             ->when(
                                 $data['created_from'] ?? null,
-                                fn($q, $value) => $q->whereDate('created_at', '>=', $value)
+                                fn ($q, $value) => $q->whereDate('created_at', '>=', $value)
                             )
                             ->when(
                                 $data['created_until'] ?? null,
-                                fn($q, $value) => $q->whereDate('created_at', '<=', $value)
+                                fn ($q, $value) => $q->whereDate('created_at', '<=', $value)
                             );
                     })
                     ->columns(2),
             ])
-            
+
             // ========== ACCIONES ==========
             ->actions([
                 // ✅ BOTÓN PARA CONVERTIR EN PRODUCTO (PRIMERO)
-                Tables\Actions\Action::make('convertir_producto')
+                Action::make('convertir_producto')
                     ->label(fn ($record) => $record->productos()->exists() ? '✅ Producto creado' : '📦 Crear Producto')
                     ->icon(fn ($record) => $record->productos()->exists() ? 'heroicon-o-check-circle' : 'heroicon-o-plus-circle')
                     ->color(fn ($record) => $record->productos()->exists() ? 'success' : 'primary')
-                    ->requiresConfirmation(fn ($record) => !$record->productos()->exists())
+                    ->requiresConfirmation(fn ($record) => ! $record->productos()->exists())
                     ->modalHeading(fn ($record) => $record->productos()->exists() ? 'Producto ya creado' : 'Crear Producto desde Maletín')
-                    ->modalDescription(fn ($record) => $record->productos()->exists() 
-                        ? 'Este maletín ya tiene un producto asociado: ' . $record->productos->first()->nombre 
+                    ->modalDescription(fn ($record) => $record->productos()->exists()
+                        ? 'Este maletín ya tiene un producto asociado: '.$record->productos->first()->nombre
                         : '¿Estás seguro de que deseas crear un producto con este maletín? Se creará con stock 1.'
                     )
                     ->modalSubmitActionLabel('Sí, crear producto')
@@ -645,19 +718,20 @@ class MaletinResource extends Resource
                         if ($record->productos()->exists()) {
                             Notification::make()
                                 ->title('ℹ️ Este maletín ya tiene un producto asociado')
-                                ->body('Producto: ' . $record->productos->first()->nombre)
+                                ->body('Producto: '.$record->productos->first()->nombre)
                                 ->info()
                                 ->send();
+
                             return;
                         }
-                        
+
                         // ✅ Obtener categoría "Maleta" y subcategoría "Maletín"
-                        $categoria = \App\Models\Categoria::where('nombre', 'Maleta')->first();
-                        $subcategoria = \App\Models\Subcategoria::where('nombre', 'Maletín')->first();
-                        
+                        $categoria = Categoria::where('nombre', 'Maleta')->first();
+                        $subcategoria = Subcategoria::where('nombre', 'Maletín')->first();
+
                         // ✅ Crear el producto con categoría y subcategoría
-                        $producto = \App\Models\Producto::create([
-                            'sku' => 'MAL-' . strtoupper(uniqid()),
+                        $producto = Producto::create([
+                            'sku' => 'MAL-'.strtoupper(uniqid()),
                             'modelo' => $record->nombre,
                             'nombre' => $record->nombre,
                             'stock' => 1,
@@ -673,18 +747,18 @@ class MaletinResource extends Resource
                             'req_calibracion_id' => null,
                             'serie' => null,
                             'imagen' => null,
-                            'descripcion' => 'Producto creado desde maletín: ' . $record->nombre,
+                            'descripcion' => 'Producto creado desde maletín: '.$record->nombre,
                         ]);
-                        
+
                         $record->productos()->attach($producto->id);
-                        
+
                         Notification::make()
                             ->title('✅ Producto creado con éxito')
                             ->body("Producto '{$producto->nombre}' creado con stock 1, categoría Maleta, subcategoría Maletín y maletín asociado")
                             ->success()
                             ->send();
                     }),
-                
+
                 // ✅ EXPORTAR CHECKLIST (EXCEL Y PDF)
                 ActionGroup::make([
                     Action::make('exportar_checklist_excel')
@@ -692,41 +766,41 @@ class MaletinResource extends Resource
                         ->icon('heroicon-o-document-arrow-down')
                         ->color('success')
                         ->action(function ($record) {
-                            return (new \App\Exports\MaletinChecklistExportPlantilla($record))->download();
+                            return (new MaletinChecklistExportPlantilla($record))->download();
                         }),
-                    
+
                     Action::make('exportar_checklist_pdf')
                         ->label('Checklist PDF')
                         ->icon('heroicon-o-document')
                         ->color('danger')
                         ->action(function ($record) {
-                            return (new \App\Exports\MaletinChecklistPdfExport($record))->download();
+                            return (new MaletinChecklistPdfExport($record))->download();
                         }),
                 ])
                     ->label('Exportar')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->tooltip('Exportar el checklist del maletín (Excel o PDF)'),
-                
+
                 // ✅ BOTÓN VER (SEGUNDO)
                 Tables\Actions\ViewAction::make()
                     ->label('Ver')
                     ->icon('heroicon-o-eye')
                     ->color('info'),
-                
+
                 // ✅ BOTÓN EDITAR (TERCERO)
                 Tables\Actions\EditAction::make()
                     ->label('Editar')
                     ->icon('heroicon-o-pencil')
                     ->color('primary'),
-                
+
                 // ✅ BOTÓN ELIMINAR (CUARTO)
                 Tables\Actions\DeleteAction::make()
                     ->label('Eliminar')
                     ->icon('heroicon-o-trash')
                     ->color('danger'),
             ])
-            
+
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
@@ -734,7 +808,7 @@ class MaletinResource extends Resource
                         ->icon('heroicon-o-trash'),
                 ]),
             ])
-            
+
             ->striped()
             ->emptyStateHeading('No hay maletines')
             ->emptyStateDescription('Crea un nuevo maletin para comenzar.')

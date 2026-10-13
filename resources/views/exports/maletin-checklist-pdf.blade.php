@@ -191,29 +191,34 @@
         /* Firmas */
         .firmas {
             width: 100%;
-            margin-top: 40px;
+            margin-top: 30px;
             border: none;
         }
         .firmas td {
             border: none;
             text-align: center;
-            vertical-align: top;
+            vertical-align: bottom;
             width: 50%;
+        }
+        .firma .firma-img {
+            height: 60px;
+        }
+        .firma .firma-img img {
+            max-height: 60px;
+            max-width: 85%;
         }
         .firma .linea {
             border-top: 1px solid #333;
             padding-top: 3px;
             font-size: 9px;
-        }
-        .firma .nombre {
-            margin-top: 2px;
-            font-size: 9px;
+            margin: 0 10%;
         }
         .nya {
-            margin-top: 4px;
             font-size: 9px;
-            padding-left: 12%;
-            width: 50%;
+            padding-top: 3px;
+            padding-left: 10%;
+            padding-right: 10%;
+            text-align: left;
         }
     </style>
 </head>
@@ -328,16 +333,27 @@
     <table class="firmas">
         <tr>
             <td class="firma">
+                <div class="firma-img">
+                    @if ($entregado_por_firma)
+                        <img src="{{ $entregado_por_firma }}" alt="Firma">
+                    @endif
+                </div>
                 <div class="linea">ENTREGADO POR</div>
-                <div class="nombre">&nbsp;</div>
             </td>
             <td class="firma">
+                <div class="firma-img">
+                    @if ($recibido_por_firma)
+                        <img src="{{ $recibido_por_firma }}" alt="Firma">
+                    @endif
+                </div>
                 <div class="linea">RECIBIDO POR</div>
-                <div class="nombre">&nbsp;</div>
             </td>
         </tr>
+        <tr>
+            <td class="nya">N. y A.: {{ $entregado_por_nombres }} &nbsp;&nbsp;&nbsp; DNI N°: {{ $entregado_por_dni }}</td>
+            <td class="nya">N. y A.: {{ $recibido_por_nombres }} &nbsp;&nbsp;&nbsp; DNI N°: {{ $recibido_por_dni }}</td>
+        </tr>
     </table>
-    <div class="nya">N. y A.&nbsp;&nbsp;&nbsp;DNI N°</div>
 
 </div>
 

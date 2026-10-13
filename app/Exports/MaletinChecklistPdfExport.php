@@ -1,9 +1,11 @@
 <?php
+
 // app/Exports/MaletinChecklistPdfExport.php
 
 namespace App\Exports;
 
 use App\Models\Maletin;
+use App\Support\Firma;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 
@@ -33,7 +35,7 @@ class MaletinChecklistPdfExport
             $g = intdiv($num, 100);
             $r = $num % 100;
 
-            return $g . '.' . str_pad((string) $r, 2, '0', STR_PAD_LEFT);
+            return $g.'.'.str_pad((string) $r, 2, '0', STR_PAD_LEFT);
         }
 
         return sprintf('%d.00', $num);
@@ -75,7 +77,7 @@ class MaletinChecklistPdfExport
                 $push(
                     $this->formatItemNumber($a->item_numero),
                     $a->cantidad,
-                    ' - ' . $a->descripcion,
+                    ' - '.$a->descripcion,
                     $a->estado_devolucion
                 );
             }
@@ -88,7 +90,7 @@ class MaletinChecklistPdfExport
                 $push(
                     $this->formatItemNumber($a->item_numero),
                     $a->cantidad,
-                    ' - ' . $a->descripcion,
+                    ' - '.$a->descripcion,
                     $a->estado_devolucion
                 );
             }
@@ -108,6 +110,12 @@ class MaletinChecklistPdfExport
             'maletin' => Str::upper($maletin->nombre),
             'fecha_devolucion' => $maletin->fecha_devolucion ? $maletin->fecha_devolucion->format('d/m/Y') : 'Pendiente',
             'observaciones' => $maletin->observaciones ?? '',
+            'entregado_por_nombres' => $maletin->entregado_por_nombres,
+            'entregado_por_dni' => $maletin->entregado_por_dni,
+            'entregado_por_firma' => Firma::base64($maletin->entregado_por_firma),
+            'recibido_por_nombres' => $maletin->recibido_por_nombres,
+            'recibido_por_dni' => $maletin->recibido_por_dni,
+            'recibido_por_firma' => Firma::base64($maletin->recibido_por_firma),
             'rows' => $this->buildRows(),
         ];
     }
@@ -124,7 +132,7 @@ class MaletinChecklistPdfExport
     {
         return response()->streamDownload(function () {
             echo $this->getContent();
-        }, 'checklist_' . Str::slug($this->maletin->nombre) . '_' . now()->format('Ymd_His') . '.pdf', [
+        }, 'checklist_'.Str::slug($this->maletin->nombre).'_'.now()->format('Ymd_His').'.pdf', [
             'Content-Type' => 'application/pdf',
         ]);
     }

@@ -1,9 +1,11 @@
 <?php
+
 // app/Filament/Resources/MaletinResource/Pages/CreateMaletin.php
 
 namespace App\Filament\Resources\MaletinResource\Pages;
 
 use App\Filament\Resources\MaletinResource;
+use App\Support\Firma;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateMaletin extends CreateRecord
@@ -17,7 +19,7 @@ class CreateMaletin extends CreateRecord
             // Filtrar items vacíos (sin descripcion) y reindexar
             $filtered = [];
             foreach ($data['componentesEquipo'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -29,11 +31,11 @@ class CreateMaletin extends CreateRecord
             }
             $data['componentesEquipo'] = $filtered;
         }
-        
+
         if (isset($data['accesoriosSet']) && is_array($data['accesoriosSet'])) {
             $filtered = [];
             foreach ($data['accesoriosSet'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -43,11 +45,11 @@ class CreateMaletin extends CreateRecord
             }
             $data['accesoriosSet'] = $filtered;
         }
-        
+
         if (isset($data['accesoriosAdicionales']) && is_array($data['accesoriosAdicionales'])) {
             $filtered = [];
             foreach ($data['accesoriosAdicionales'] as $item) {
-                if (!empty($item['descripcion']) || !empty($item['cantidad'])) {
+                if (! empty($item['descripcion']) || ! empty($item['cantidad'])) {
                     $filtered[] = $item;
                 }
             }
@@ -57,7 +59,11 @@ class CreateMaletin extends CreateRecord
             }
             $data['accesoriosAdicionales'] = $filtered;
         }
-        
+
+        // ✅ Guardar las firmas capturadas (data URL -> archivo)
+        $data['entregado_por_firma'] = Firma::guardar($data['entregado_por_firma'] ?? null, 'firmas/maletines');
+        $data['recibido_por_firma'] = Firma::guardar($data['recibido_por_firma'] ?? null, 'firmas/maletines');
+
         return $data;
     }
 
