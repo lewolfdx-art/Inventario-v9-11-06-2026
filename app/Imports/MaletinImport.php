@@ -479,9 +479,27 @@ class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormu
             $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
         }
 
-        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        $text = mb_strtolower($text, 'UTF-8');
 
-        return strtolower((string) trim($text));
+        // Plegado explícito de tildes y "ñ" del español. No se usa solo
+        // iconv //TRANSLIT porque en Windows convierte "Ó" en "'o" (apóstrofo)
+        // y "Ñ" en "~n", lo que impedía reconocer etiquetas como
+        // "FECHA DE ATENCIÓN" o "CONEXIÓN DE LA LÍNEA".
+        $text = strtr($text, [
+            'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
+            'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+            'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+            'ñ' => 'n', 'ç' => 'c',
+        ]);
+
+        // Resto de caracteres no ASCII: transliterar y limpiar los signos que
+        // algunos sistemas insertan (apóstrofos, tildes, comillas...).
+        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        $text = str_replace(["'", '`', '~', '"', '^'], '', $text);
+
+        return trim($text);
     }
 
     /**
@@ -653,13 +671,41 @@ class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormu
                 continue;
             }
 
-            // Desde la columna de la etiqueta hacia la derecha
-            $trozo = array_values(array_slice($filaArray, $i));
+            // Desde la columna de la etiqueta hacia la derecha, pero sin pasar
+            // a otra etiqueta de fecha de la misma fila (FECHA DE PEDIDO y
+            // FECHA DE ATENCIÓN comparten fila); así no se toma la fecha de la
+            // etiqueta vecina cuando la propia está vacía.
+            $fin = count($filaArray);
+            for ($j = $i + 1; $j < count($filaArray); $j++) {
+                if ($this->esEtiquetaFecha($filaArray[$j])) {
+                    $fin = $j;
+                    break;
+                }
+            }
+
+            $trozo = array_values(array_slice($filaArray, $i, $fin - $i));
 
             return $this->parseFechaDevolucion($trozo);
         }
 
         return null;
+    }
+
+    /**
+     * Indica si una celda contiene alguna de las etiquetas de fecha del
+     * checklist (pedido / atención / devolución).
+     */
+    protected function esEtiquetaFecha($celda): bool
+    {
+        $n = $this->normalizarTexto($celda);
+
+        foreach (['fecha de pedido', 'fecha de atencion', 'fecha de devolucion'] as $etq) {
+            if (str_contains($n, $etq)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -671,36 +717,112 @@ class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormu
     {
         $texto = implode(' ', array_filter(array_map('trim', array_map('strval', $filaArray))));
 
-        if (!preg_match('/(\d{1,2})[\s\/\-.]+(\d{1,2})[\s\/\-.]+(\d{2,4})/', $texto, $m)) {
-            return null;
-        }
+        // 1) Formato numérico: 25/10/2026, 25-10-2026, 25.10.2026 ...
+        if (preg_match('/(\d{1,2})[\s\/\-.]+(\d{1,2})[\s\/\-.]+(\d{2,4})/', $texto, $m)) {
+            $dia = $m[1];
+            $mes = $m[2];
+            $anio = (int) $m[3];
 
-        $dia = $m[1];
-        $mes = $m[2];
-        $anio = (int) $m[3];
+            $formatos = ['d/m/Y', 'd-m-Y', 'd.m.Y', 'Y-m-d', 'd/m/y', 'd-m-y', 'd.m.y'];
 
-        $formatos = ['d/m/Y', 'd-m-Y', 'd.m.Y', 'Y-m-d', 'd/m/y', 'd-m-y', 'd.m.y'];
-        $fecha = null;
+            foreach ($formatos as $formato) {
+                $candidato = \DateTime::createFromFormat($formato, "$dia/$mes/$anio");
+                $errores = \DateTime::getLastErrors();
+                $valida = $candidato && !($errores && ($errores['warning_count'] > 0 || $errores['error_count'] > 0));
 
-        foreach ($formatos as $formato) {
-            $candidato = \DateTime::createFromFormat($formato, "$dia/$mes/$anio");
-            $errores = \DateTime::getLastErrors();
-            $valida = $candidato && !($errores && ($errores['warning_count'] > 0 || $errores['error_count'] > 0));
+                if ($valida) {
+                    $candidato->setTime(0, 0);
 
-            if ($valida) {
-                $fecha = $candidato;
-                break;
+                    return $candidato->format('Y-m-d');
+                }
             }
         }
 
-        if (!$fecha) {
+        // 2) Serial de Excel: cuando el usuario escribe una fecha real, la celda
+        //    llega como número (p. ej. 46337 = 11/11/2026) porque el importador
+        //    entrega el valor crudo, sin formato.
+        $serial = $this->parseFechaSerialExcel($filaArray);
+
+        if ($serial !== null) {
+            return $serial;
+        }
+
+        // 3) Formato con el mes escrito: "13 de octubre de 2026",
+        //    "martes, 13 de octubre de 2026" o "13 octubre 2026".
+        return $this->parseFechaConMes($texto);
+    }
+
+    /**
+     * Interpreta el primer valor numérico del tramo como serial de fecha de
+     * Excel. Solo acepta un rango razonable (años ~1954 a ~2118) para no
+     * confundir cantidades u otros números con fechas. Devuelve "Y-m-d" o null.
+     */
+    protected function parseFechaSerialExcel(array $filaArray)
+    {
+        foreach ($filaArray as $valor) {
+            if (!is_numeric($valor)) {
+                continue;
+            }
+
+            $num = (float) $valor;
+
+            if ($num < 20000 || $num > 80000) {
+                continue;
+            }
+
+            try {
+                $fecha = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((int) floor($num));
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            return $fecha->format('Y-m-d');
+        }
+
+        return null;
+    }
+
+    /**
+     * Extrae una fecha cuyo mes viene escrito en palabras (español). Ignora de
+     * forma natural el día de la semana (p. ej. "martes,"). Devuelve "Y-m-d".
+     */
+    protected function parseFechaConMes(string $texto)
+    {
+        $norm = $this->normalizarTexto($texto);
+
+        if (!preg_match('/(\d{1,2})\s+(?:de\s+)?([a-z]{3,})\.?\s+(?:de\s+)?(\d{2,4})/', $norm, $m)) {
             return null;
         }
 
-        // Normalizar año de 2 dígitos -> 4
-        $fecha->setTime(0, 0);
+        $meses = [
+            'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4,
+            'mayo' => 5, 'junio' => 6, 'julio' => 7, 'agosto' => 8,
+            'septiembre' => 9, 'setiembre' => 9, 'octubre' => 10,
+            'noviembre' => 11, 'diciembre' => 12,
+            'ene' => 1, 'feb' => 2, 'mar' => 3, 'abr' => 4, 'may' => 5,
+            'jun' => 6, 'jul' => 7, 'ago' => 8, 'sep' => 9, 'set' => 9,
+            'oct' => 10, 'nov' => 11, 'dic' => 12,
+        ];
 
-        return $fecha->format('Y-m-d');
+        $nombreMes = rtrim($m[2], '.');
+
+        if (!isset($meses[$nombreMes])) {
+            return null;
+        }
+
+        $dia = (int) $m[1];
+        $mes = $meses[$nombreMes];
+        $anio = (int) $m[3];
+
+        if ($anio < 100) {
+            $anio += 2000;
+        }
+
+        if (!checkdate($mes, $dia, $anio)) {
+            return null;
+        }
+
+        return sprintf('%04d-%02d-%02d', $anio, $mes, $dia);
     }
 
     /**
