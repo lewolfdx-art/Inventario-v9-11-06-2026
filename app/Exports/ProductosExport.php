@@ -29,7 +29,41 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function collection()
     {
-        return $this->records;
+        $recalKeys = ['recalibracion_fecha', 'recalibracion_proxima', 'recalibracion_observaciones', 'recalibracion_realizada_por'];
+
+        $keysToExport = empty($this->selectedColumns) ? array_keys($this->getAllColumns()) : $this->selectedColumns;
+
+        // Si no se piden columnas de recalibración, una fila por producto (comportamiento normal).
+        if (empty(array_intersect($keysToExport, $recalKeys))) {
+            return $this->records;
+        }
+
+        // Si se piden columnas de recalibración, se expande una fila por cada
+        // recalibración del producto (así el historial completo viaja en el Excel).
+        $out = new Collection();
+
+        foreach ($this->records as $producto) {
+            $recalibraciones = $producto->relationLoaded('recalibraciones')
+                ? $producto->recalibraciones
+                : $producto->recalibraciones()->orderBy('fecha_recalibracion')->get();
+
+            $recalibraciones = $recalibraciones
+                ->sortBy(fn($r) => $r->fecha_recalibracion?->timestamp ?? 0)
+                ->values();
+
+            if ($recalibraciones->isEmpty()) {
+                $out->push($producto);
+                continue;
+            }
+
+            foreach ($recalibraciones as $recalibracion) {
+                $clone = clone $producto;
+                $clone->setRelation('recalibracionActual', $recalibracion);
+                $out->push($clone);
+            }
+        }
+
+        return $out;
     }
 
     private function getAllColumns(): array
@@ -74,6 +108,10 @@ class ProductosExport implements FromCollection, WithHeadings, WithMapping, With
             'req_calibracion'           => ['header' => 'Requiere Calibración',      'value' => fn($p) => $p->reqCalibracion->nombre ?? 'No'],
             'descripcion'               => ['header' => 'Descripción',               'value' => fn($p) => $p->descripcion ?? ''],
             'observacion'               => ['header' => 'Observación',               'value' => fn($p) => $p->observacion ?? ''],  // ✅ NUEVO
+            'recalibracion_fecha'       => ['header' => 'Recalibración - Fecha',      'value' => fn($p) => $p->recalibracionActual?->fecha_recalibracion?->format('d/m/Y') ?? ''],
+            'recalibracion_proxima'     => ['header' => 'Recalibración - Próxima',    'value' => fn($p) => $p->recalibracionActual?->proxima_recalibracion?->format('d/m/Y') ?? ''],
+            'recalibracion_observaciones' => ['header' => 'Recalibración - Observaciones', 'value' => fn($p) => $p->recalibracionActual?->observaciones ?? ''],
+            'recalibracion_realizada_por' => ['header' => 'Recalibración - Realizada por', 'value' => fn($p) => $p->recalibracionActual?->realizada_por_nombre ?? ''],
             'created_at'                => ['header' => 'Fecha Registro',            'value' => fn($p) => $p->created_at?->format('d/m/Y H:i:s') ?? ''],
             'updated_at'                => ['header' => 'Última Actualización',      'value' => fn($p) => $p->updated_at?->format('d/m/Y H:i:s') ?? ''],
         ];

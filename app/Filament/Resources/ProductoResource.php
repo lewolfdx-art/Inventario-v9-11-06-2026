@@ -472,6 +472,12 @@ class ProductoResource extends Resource
                                 'req_serie' => 'Requiere Serie',
                                 'req_lote' => 'Requiere Lote',
                                 'req_calibracion' => 'Requiere Calibración',
+                                'descripcion' => 'Descripción',
+                                'observacion' => 'Observación',
+                                'recalibracion_fecha' => 'Recalibración - Fecha',
+                                'recalibracion_proxima' => 'Recalibración - Próxima',
+                                'recalibracion_observaciones' => 'Recalibración - Observaciones',
+                                'recalibracion_realizada_por' => 'Recalibración - Realizada por',
                                 'created_at' => 'Fecha Registro',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado', 'stock'])
@@ -479,7 +485,7 @@ class ProductoResource extends Resource
                             ->label('Seleccione las columnas'),
                     ])
                     ->action(function (array $data) {
-                        $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion'])->get();
+                        $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion', 'recalibraciones'])->get();
                         $columnasSeleccionadas = $data['columnas'] ?? [];
                         $export = new ProductosExport($records, $columnasSeleccionadas);
                         return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
@@ -509,6 +515,8 @@ class ProductoResource extends Resource
                                 'estado' => 'Estado',
                                 'unidad_compra' => 'Unidad',
                                 'naturaleza' => 'Naturaleza',
+                                'descripcion' => 'Descripción',
+                                'observacion' => 'Observación',
                             ])
                             ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado', 'stock'])
                             ->columns(2)
@@ -1635,6 +1643,12 @@ class ProductoResource extends Resource
                                     'req_serie' => 'Requiere Serie',
                                     'req_lote' => 'Requiere Lote',
                                     'req_calibracion' => 'Requiere Calibración',
+                                    'descripcion' => 'Descripción',
+                                    'observacion' => 'Observación',
+                                    'recalibracion_fecha' => 'Recalibración - Fecha',
+                                    'recalibracion_proxima' => 'Recalibración - Próxima',
+                                    'recalibracion_observaciones' => 'Recalibración - Observaciones',
+                                    'recalibracion_realizada_por' => 'Recalibración - Realizada por',
                                     'created_at' => 'Fecha Registro',
                                 ])
                                 ->default(['sku', 'modelo', 'nombre', 'categoria', 'subcategoria', 'marca', 'estado', 'stock'])
@@ -1642,7 +1656,7 @@ class ProductoResource extends Resource
                                 ->label('Seleccione las columnas'),
                         ])
                         ->action(function ($records, array $data) {
-                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion']);
+                            $records->load(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion', 'recalibraciones']);
                             $export = new ProductosExport($records, $data['columnas'] ?? []);
                             return Excel::download($export, 'Detalle_inventario_herramientas_' . now()->format('Ymd_His') . '.xlsx');
                         }),
@@ -1676,6 +1690,8 @@ class ProductoResource extends Resource
                                     'req_serie' => 'Requiere Serie',
                                     'req_lote' => 'Requiere Lote',
                                     'req_calibracion' => 'Requiere Calibración',
+                                    'descripcion' => 'Descripción',
+                                    'observacion' => 'Observación',
                                     'created_at' => 'Fecha Registro',
                                 ])
                                 ->default(['sku', 'modelo', 'nombre', 'categoria', 'marca', 'estado', 'stock'])

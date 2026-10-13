@@ -11,10 +11,12 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Imports\Concerns\ParseaFechas;
 
 class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormulas
 {
     use Importable;
+    use ParseaFechas;
 
     protected $categoriaId;
     protected $subcategoriaId;
@@ -463,46 +465,6 @@ class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormu
     }
 
     /**
-     * Normaliza un texto: convierte a UTF-8 si viene de Windows-1252,
-     * quita acentos y pasa a minúsculas. Útil para comparar el contenido
-     * del Excel (que puede traer tildes en codificación antigua).
-     */
-    protected function normalizarTexto($text)
-    {
-        $text = (string) $text;
-
-        if ($text === '') {
-            return '';
-        }
-
-        if (!mb_check_encoding($text, 'UTF-8')) {
-            $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
-        }
-
-        $text = mb_strtolower($text, 'UTF-8');
-
-        // Plegado explícito de tildes y "ñ" del español. No se usa solo
-        // iconv //TRANSLIT porque en Windows convierte "Ó" en "'o" (apóstrofo)
-        // y "Ñ" en "~n", lo que impedía reconocer etiquetas como
-        // "FECHA DE ATENCIÓN" o "CONEXIÓN DE LA LÍNEA".
-        $text = strtr($text, [
-            'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
-            'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
-            'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
-            'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
-            'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
-            'ñ' => 'n', 'ç' => 'c',
-        ]);
-
-        // Resto de caracteres no ASCII: transliterar y limpiar los signos que
-        // algunos sistemas insertan (apóstrofos, tildes, comillas...).
-        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
-        $text = str_replace(["'", '`', '~', '"', '^'], '', $text);
-
-        return trim($text);
-    }
-
-    /**
      * Detecta si alguna celda de la fila contiene la etiqueta
      * "FECHA DE DEVOLUCIÓN" (con o sin tilde).
      */
@@ -750,79 +712,6 @@ class MaletinImport implements ToCollection, SkipsEmptyRows, WithCalculatedFormu
         // 3) Formato con el mes escrito: "13 de octubre de 2026",
         //    "martes, 13 de octubre de 2026" o "13 octubre 2026".
         return $this->parseFechaConMes($texto);
-    }
-
-    /**
-     * Interpreta el primer valor numérico del tramo como serial de fecha de
-     * Excel. Solo acepta un rango razonable (años ~1954 a ~2118) para no
-     * confundir cantidades u otros números con fechas. Devuelve "Y-m-d" o null.
-     */
-    protected function parseFechaSerialExcel(array $filaArray)
-    {
-        foreach ($filaArray as $valor) {
-            if (!is_numeric($valor)) {
-                continue;
-            }
-
-            $num = (float) $valor;
-
-            if ($num < 20000 || $num > 80000) {
-                continue;
-            }
-
-            try {
-                $fecha = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((int) floor($num));
-            } catch (\Throwable $e) {
-                continue;
-            }
-
-            return $fecha->format('Y-m-d');
-        }
-
-        return null;
-    }
-
-    /**
-     * Extrae una fecha cuyo mes viene escrito en palabras (español). Ignora de
-     * forma natural el día de la semana (p. ej. "martes,"). Devuelve "Y-m-d".
-     */
-    protected function parseFechaConMes(string $texto)
-    {
-        $norm = $this->normalizarTexto($texto);
-
-        if (!preg_match('/(\d{1,2})\s+(?:de\s+)?([a-z]{3,})\.?\s+(?:de\s+)?(\d{2,4})/', $norm, $m)) {
-            return null;
-        }
-
-        $meses = [
-            'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4,
-            'mayo' => 5, 'junio' => 6, 'julio' => 7, 'agosto' => 8,
-            'septiembre' => 9, 'setiembre' => 9, 'octubre' => 10,
-            'noviembre' => 11, 'diciembre' => 12,
-            'ene' => 1, 'feb' => 2, 'mar' => 3, 'abr' => 4, 'may' => 5,
-            'jun' => 6, 'jul' => 7, 'ago' => 8, 'sep' => 9, 'set' => 9,
-            'oct' => 10, 'nov' => 11, 'dic' => 12,
-        ];
-
-        $nombreMes = rtrim($m[2], '.');
-
-        if (!isset($meses[$nombreMes])) {
-            return null;
-        }
-
-        $dia = (int) $m[1];
-        $mes = $meses[$nombreMes];
-        $anio = (int) $m[3];
-
-        if ($anio < 100) {
-            $anio += 2000;
-        }
-
-        if (!checkdate($mes, $dia, $anio)) {
-            return null;
-        }
-
-        return sprintf('%04d-%02d-%02d', $anio, $mes, $dia);
     }
 
     /**
