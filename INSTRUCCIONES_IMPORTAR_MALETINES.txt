@@ -1,0 +1,50 @@
+INSTRUCCIONES PARA IMPORTAR MALETINES DESDE EXCEL
+==================================================
+
+1. TIPO DE ARCHIVO
+- Formato obligatorio: .xlsx (NO .xls)
+- El archivo DEBE contener al menos una hoja con estructura de Checklist.
+- Se recomienda que el NOMBRE DE LA HOJA sea Checklist.
+
+2. CONDICIÓN PARA QUE SE IMPORTE LA HOJA
+El sistema SOLO procesará la hoja que contenga alguno de estos textos en cualquier celda:
+  - CHECK LIST DE ENTREGA
+  - EQUIPO DE PRUEBAS
+
+3. NOMBRE DEL MALETÍN
+Se detecta AUTOMÁTICAMENTE en la fila del título CHECK LIST DE ENTREGA DE MALETÍN.
+- Busca patrones como: CHECK LIST DE ENTREGA DE MALETIN [NOMBRE]
+- Elimina textos extra como Versión, Fecha, etc.
+- Si no logra detectarlo, se asignará: Maletín Importado
+
+4. DATOS GENERALES (CABECERA)
+| Campo | Tipo de Dato | Notas |
+|---|---|---|
+| Nombre del Proyecto y Cliente | Texto | Etiqueta: NOMBRE DEL PROYECTO Y CLIENTE |
+| Fecha de Entrega | Fecha | DD/MM/AAAA o MM/DD/AAAA |
+| Fecha de Devolución | Fecha | DD/MM/AAAA o MM/DD/AAAA (opcional) |
+| Entregado Por | Texto | Opcional |
+| Recibido Por | Texto | Opcional |
+| Observaciones | Texto | Opcional |
+
+5. TABLA DE EQUIPO DE PRUEBAS
+Columnas reconocidas:
+| Columna | Tipo | Valores Permitidos | Notas |
+|---|---|---|---|
+| CANTIDAD | Numérico (Entero) | >= 1 | Obligatorio en lo práctico |
+| DESCRIPCIÓN / DESCRIPCION | Texto | Libre | Requerida para crear/relacionar ítem |
+| CÓDIGO / CODIGO / S/N | Texto | Libre | Código o N/S |
+| ESTADO | Texto | BIEN/MAL/FALTA | Si contiene FALTA ? FALTA. Si dice MAL ? MAL. Else ? BIEN. |
+| OBSERVACIONES | Texto | Libre | Opcional |
+
+6. FIRMAS (IMÁGENES)
+- Deben estar insertadas como **IMAGEN DENTRO DEL RECUADRO/CELDA** (dibujo incrustado).
+- NO enlaces, NO rutas externas.
+- Deben estar dentro del recuadro destinado a la firma.
+- Formatos: PNG, JPG/JPEG, GIF.
+
+7. RECOMENDACIONES
+- Usar .xlsx nativo.
+- Insertar firma con Insertar > Imágenes dentro del recuadro.
+- Verificar que exista CHECK LIST DE ENTREGA visible.
+- No cambiar nombres de etiquetas principales.

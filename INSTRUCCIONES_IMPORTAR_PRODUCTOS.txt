@@ -1,0 +1,85 @@
+INSTRUCCIONES PARA IMPORTAR PRODUCTOS / HERRAMIENTAS DESDE EXCEL
+================================================================
+
+1. TIPO DE ARCHIVO
+------------------
+- Formato obligatorio: .xlsx (NO .xls).
+- ESTRUCTURA OBLIGATORIA DE FILAS:
+  * Fila 1 y 2: se pueden usar para titulo/logo (no se leen).
+  * Fila 3: ENCABEZADOS (nombres de las columnas). DEBEN ir aqui.
+  * Fila 4 en adelante: los datos, un producto/herramienta por fila.
+
+2. CAMPO OBLIGATORIO
+--------------------
+- SKU: si la celda SKU esta vacia, la fila se IGNORA por completo.
+
+3. COLUMNAS RECONOCIDAS
+-----------------------
+Los encabezados NO distinguen mayusculas, tildes, espacios ni guiones.
+
+| Columna (encabezado)                          | Tipo de dato    | Valores / Notas |
+|---|---|---|
+| SKU                                           | Texto           | OBLIGATORIO. Llave del producto (crea o actualiza). |
+| NOMBRE                                        | Texto           | Si falta, se usa el SKU. |
+| MODELO                                        | Texto           | Opcional. |
+| SERIE                                         | Texto           | Opcional. |
+| DESCRIPCION                                   | Texto           | Opcional. |
+| OBSERVACION / OBSERVACIONES                   | Texto           | Opcional. |
+| CATEGORIA / CATEGORIA_FAMILIA                 | Texto           | Si falta usa OTROS. Se crea si no existe. |
+| SUBCATEGORIA                                  | Texto           | Si falta usa S/M. Se crea si no existe. |
+| MARCA                                         | Texto           | Si falta usa S/M. Se crea si no existe. |
+| UNIDAD_COMPRA / UNIDAD                        | Texto           | Si falta usa UNIDAD. Se crea si no existe. |
+| NATURALEZA                                    | Texto (opcion)  | Valores: tangible | intangible. Si falta: tangible. |
+| ESTADO                                        | Texto (opcion)  | Valores: activo | inactivo. Si falta: activo. |
+| REQ_INVENTARIO / REQUIERE_INVENTARIO          | Texto (opcion)  | Valores: Si | No. Si falta: No. |
+| REQ_SERIE / REQUIERE_SERIE                    | Texto (opcion)  | Valores: Si | No. Si falta: No. |
+| REQ_LOTE / REQUIERE_LOTE                      | Texto (opcion)  | Valores: Si | No. Si falta: No. |
+| REQ_CALIBRACION / REQUIERE_CALIBRACION        | Texto (opcion)  | Valores: Si | No. Si falta: No. |
+| ANIO_FABRICACION / ANO_FABRICACION / ANIO / ANO | Numero entero | Opcional (ej. 2024). |
+| STOCK / STOCK_ACTUAL / CANTIDAD               | Numero entero   | Opcional. |
+| UBICACION                                     | Texto           | Ver reglas abajo. Si falta: almacen. |
+| FRECUENCIA_MANTENIMIENTO / FRECUENCIA         | Texto           | Ver reglas abajo. |
+| FECHA_ULTIMA_CALIBRACION / ULTIMA_CALIBRACION | Fecha           | Opcional. |
+| FECHA_ULTIMO_MANTENIMIENTO / ULTIMO_MANTENIMIENTO | Fecha       | Opcional. |
+
+4. HISTORIAL DE RECALIBRACIONES (opcional, una fila por recalibracion)
+---------------------------------------------------------------------
+| Columna                    | Tipo de dato | Notas |
+|---|---|---|
+| RECALIBRACION_FECHA        | Fecha        | Si tiene fecha, se registra el historial. |
+| RECALIBRACION_PROXIMA      | Fecha        | Opcional. |
+| RECALIBRACION_OBSERVACIONES| Texto        | Opcional. |
+| RECALIBRACION_REALIZADA_POR| Texto        | Opcional. |
+
+5. FORMATO DE FECHAS ACEPTADO
+-----------------------------
+- Latino:      DD/MM/AAAA, DD-MM-AAAA o DD.MM.AAAA (ej. 25/10/2026).
+- ISO:         AAAA/MM/DD o AAAA-MM-DD (ej. 2026-10-25).
+- Con mes:     "13 de octubre de 2026".
+- Serial de Excel (cuando la celda es una fecha de Excel real).
+
+6. REGLAS DE CONVERSION DE VALORES
+----------------------------------
+UBICACION:
+- Contiene "alquil" o "renta"           -> alquilado
+- Contiene "campo", "obra" o "terreno"  -> campo
+- Cualquier otro valor o vacio          -> almacen
+
+FRECUENCIA_MANTENIMIENTO:
+- Contiene "vida" o "unica"             -> vida_util_unica
+- Contiene "2" o "dos"                  -> 2_anios
+- Contiene "1", "uno" o "anual"         -> 1_anio
+- No coincide ninguna                   -> no se guarda
+
+7. COMPORTAMIENTO DEL IMPORT
+----------------------------
+- Si el SKU ya existe: ACTUALIZA el producto (solo sobrescribe los campos que vengan con valor).
+- Si el SKU no existe: CREA el producto.
+- Categorias, subcategorias, marcas, unidades, naturaleza y estado se crean automaticamente si no existen.
+
+8. RECOMENDACIONES
+------------------
+- No dejar la fila 3 vacia: ahi van los encabezados.
+- No cambiar el nombre de la columna SKU (es la llave).
+- Una sola categoria/subcategoria por fila (texto).
+- Guardar siempre como .xlsx nativo de Excel.

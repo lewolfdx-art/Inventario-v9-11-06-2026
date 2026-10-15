@@ -22,6 +22,8 @@ services:
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
       - ./lang:/var/www/html/lang
+      # Formatos/auxiliares (Excel, instrucciones, plantillas)
+      - ./scripts:/var/www/html/scripts
       # Persistencia
       - ./storage:/var/www/html/storage
     env_file:
