@@ -284,6 +284,32 @@ class Producto extends Model
     // ========== SCOPES PARA FILTROS ==========
     
     /**
+     * Excluye los productos huérfanos creados desde un maletín: aquellos de
+     * categoría "Maleta" / subcategoría "Maletín" que ya no están vinculados a
+     * ningún maletín (por ejemplo, porque el maletín fue eliminado).
+     */
+    public function scopeSinMaletinesHuerfanos($query)
+    {
+        $subId = Subcategoria::where('nombre', 'Maletín')->value('id');
+        $catId = Categoria::where('nombre', 'Maleta')->value('id');
+
+        if (! $subId && ! $catId) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($subId, $catId) {
+            $q->where(function ($w) use ($subId, $catId) {
+                if ($catId) {
+                    $w->whereNull('categoria_id')->orWhere('categoria_id', '!=', $catId);
+                }
+                if ($subId) {
+                    $w->orWhereNull('subcategoria_id')->orWhere('subcategoria_id', '!=', $subId);
+                }
+            })->orWhereHas('maletines');
+        });
+    }
+
+    /**
      * Scope para filtrar por maletín
      */
     public function scopeEnMaletin($query, $maletinId)

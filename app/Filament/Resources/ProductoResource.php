@@ -21,6 +21,7 @@ use App\Exports\ProductosPdfExport;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Tables\Columns\ImageColumn;
 use Illuminate\Support\HtmlString;
+use Illuminate\Database\Eloquent\Builder;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,11 @@ class ProductoResource extends Resource
     protected static ?string $pluralLabel = 'Herramientas';
     protected static ?string $label = 'Producto';
     protected static ?int $navigationSort = 1;
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->sinMaletinesHuerfanos();
+    }
 
     public static function form(Form $form): Form
     {
@@ -485,7 +491,7 @@ class ProductoResource extends Resource
                             ->label('Seleccione las columnas'),
                     ])
                     ->action(function (array $data) {
-                        $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion', 'recalibraciones'])->get();
+                        $records = Producto::with(['categoria', 'subcategoria', 'marca', 'unidadCompra', 'naturaleza', 'estado', 'reqInventario', 'reqSerie', 'reqLote', 'reqCalibracion', 'recalibraciones'])->sinMaletinesHuerfanos()->get();
                         $columnasSeleccionadas = $data['columnas'] ?? [];
                         $export = new ProductosExport($records, $columnasSeleccionadas);
                         return Excel::download($export, 'productos_todos_' . now()->format('Ymd_His') . '.xlsx');
@@ -523,7 +529,7 @@ class ProductoResource extends Resource
                             ->label('Seleccione las columnas'),
                     ])
                     ->action(function (array $data) {
-                        $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->get();
+                        $records = Producto::with(['categoria', 'marca', 'unidadCompra', 'naturaleza', 'estado'])->sinMaletinesHuerfanos()->get();
                         $columnasSeleccionadas = $data['columnas'] ?? [];
                         $export = new ProductosPdfExport($records, $columnasSeleccionadas);
                         return response()->streamDownload(function () use ($export) {
