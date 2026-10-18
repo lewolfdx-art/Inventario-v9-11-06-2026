@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use App\Models\Unidad;
+use App\Services\ZplPrinter;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Illuminate\Http\Response;
 
@@ -263,8 +264,7 @@ ZPL;
     }
 
     /**
-     * ✅ Opción 1: Solo abre Direct Communication con el archivo cargado
-     * No descarga el archivo, solo lo abre en la utilidad
+     * Envía la etiqueta del producto a la impresora configurada.
      */
     public function abrirDirectComm(Producto $producto)
     {
@@ -274,30 +274,13 @@ ZPL;
 
         $zpl = $this->generarZPLProductoCompleto($producto);
         $filename = "etiqueta_{$producto->sku}.zpl";
-        $tempFile = storage_path("app/temp/" . $filename);
-        
-        if (!is_dir(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
-        }
-        
-        file_put_contents($tempFile, $zpl);
-        
-        try {
-            // Abrir Direct Communication con el archivo cargado
-            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
-            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
-            pclose(popen("start /B $command", 'r'));
-            
-            return redirect()->back()->with('success', '✅ Direct Communication abierto. Presiona Ctrl+Enter para imprimir.');
-            
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', '❌ Error al abrir Direct Communication: ' . $e->getMessage());
-        }
+        $result = ZplPrinter::print($zpl, $filename);
+
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
     /**
-     * ✅ Opción 2: Descarga el ZPL y abre Direct Communication
-     * Descarga el archivo y lo abre en la utilidad
+     * Imprime la etiqueta del producto y además descarga el archivo .zpl.
      */
     public function descargarYAbir(Producto $producto)
     {
@@ -307,35 +290,15 @@ ZPL;
 
         $zpl = $this->generarZPLProductoCompleto($producto);
         $filename = "etiqueta_{$producto->sku}.zpl";
-        $tempFile = storage_path("app/temp/" . $filename);
-        
-        if (!is_dir(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
-        }
-        
-        file_put_contents($tempFile, $zpl);
-        
-        try {
-            // Abrir Direct Communication con el archivo cargado
-            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
-            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
-            pclose(popen("start /B $command", 'r'));
-            
-            // Descargar el archivo
-            return response($zpl, 200)
-                ->header('Content-Type', 'text/plain')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-            
-        } catch (\Exception $e) {
-            // Si falla, al menos descarga el archivo
-            return response($zpl, 200)
-                ->header('Content-Type', 'text/plain')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-        }
+        ZplPrinter::print($zpl, $filename);
+
+        return response($zpl, 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     /**
-     * ✅ Opción 1 (unidad): Solo abre Direct Communication con el archivo cargado
+     * Envía la etiqueta de la unidad a la impresora configurada.
      */
     public function abrirDirectCommUnidad(Unidad $unidad)
     {
@@ -345,28 +308,13 @@ ZPL;
 
         $zpl = $this->generarZPLUnidad($unidad);
         $filename = "etiqueta_{$unidad->codigo}.zpl";
-        $tempFile = storage_path("app/temp/" . $filename);
+        $result = ZplPrinter::print($zpl, $filename);
 
-        if (!is_dir(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
-        }
-
-        file_put_contents($tempFile, $zpl);
-
-        try {
-            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
-            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
-            pclose(popen("start /B $command", 'r'));
-
-            return redirect()->back()->with('success', '✅ Direct Communication abierto (unidad ' . $unidad->codigo . '). Presiona Ctrl+Enter para imprimir.');
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', '❌ Error al abrir Direct Communication: ' . $e->getMessage());
-        }
+        return redirect()->back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
     /**
-     * ✅ Opción 2 (unidad): Descarga el ZPL y abre Direct Communication
+     * Imprime la etiqueta de la unidad y además descarga el archivo .zpl.
      */
     public function descargarYAbirUnidad(Unidad $unidad)
     {
@@ -376,27 +324,10 @@ ZPL;
 
         $zpl = $this->generarZPLUnidad($unidad);
         $filename = "etiqueta_{$unidad->codigo}.zpl";
-        $tempFile = storage_path("app/temp/" . $filename);
+        ZplPrinter::print($zpl, $filename);
 
-        if (!is_dir(storage_path('app/temp'))) {
-            mkdir(storage_path('app/temp'), 0755, true);
-        }
-
-        file_put_contents($tempFile, $zpl);
-
-        try {
-            $prnUtils = '"C:\Program Files (x86)\Zebra Technologies\Zebra Setup Utilities\App\PrnUtils.exe"';
-            $command = "start \"\" $prnUtils /direct /p USB001 /f \"$tempFile\"";
-            pclose(popen("start /B $command", 'r'));
-
-            return response($zpl, 200)
-                ->header('Content-Type', 'text/plain')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-
-        } catch (\Exception $e) {
-            return response($zpl, 200)
-                ->header('Content-Type', 'text/plain')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-        }
+        return response($zpl, 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }

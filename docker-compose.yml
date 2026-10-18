@@ -26,8 +26,16 @@ services:
       - ./scripts:/var/www/html/scripts
       # Persistencia
       - ./storage:/var/www/html/storage
+      # Impresión USB mediante CUPS del host (servidor Linux).
+      # Descomenta en el servidor donde esté enchufada la Zebra por USB:
+      # - /var/run/cups/cups.sock:/var/run/cups/cups.sock
     env_file:
       - .env
+    environment:
+      # Apunta al socket CUPS del host (necesario al montarlo arriba):
+      # CUPS_SERVER: /var/run/cups/cups.sock
+      ZPL_DRIVER: ${ZPL_DRIVER:-cups}
+      ZPL_PRINTER_QUEUE: ${ZPL_PRINTER_QUEUE:-Zebra}
     depends_on:
       - db
     networks:
