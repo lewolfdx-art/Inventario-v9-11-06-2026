@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return [
 
@@ -35,4 +35,25 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | ImpresiÃ³n de etiquetas ZPL (Zebra)
+    |--------------------------------------------------------------------------
+    | driver: cups    -> Linux/Mac, impresora USB vÃ­a cola CUPS (lp -d <cola> -o raw)
+    |         network -> Impresora de red (socket TCP al puerto 9100)
+    |         windows -> Windows con Zebra Setup Utilities (PrnUtils.exe)
+    | Si no se define, se autodetecta: windows en Windows, cups en Linux/Mac.
+    */
+
+    'zpl' => [
+        'driver' => env('ZPL_DRIVER', 'cups'),
+        'queue' => env('ZPL_QUEUE', env('ZPL_PRINTER_QUEUE', 'Zebra')),
+        'host' => env('ZPL_HOST', env('ZPL_PRINTER_HOST', '192.168.1.100')),
+        'port' => (int) env('ZPL_PORT', env('ZPL_PRINTER_PORT', 9100)),
+        'windows_prn_utils' => env('ZPL_WINDOWS_PRNUTILS', 'C:\\Program Files (x86)\\Zebra Technologies\\Zebra Setup Utilities\\App\\PrnUtils.exe'),
+        'windows_port' => env('ZPL_WINDOWS_PORT', 'USB001'),
+    ],
+
 ];
+
+
